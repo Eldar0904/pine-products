@@ -295,7 +295,21 @@ export function createTranslator(language) {
   };
 }
 
+export const ROADMAP_STAGES = ['Discovery', 'Building', 'Testing', 'Live', 'Measuring outcome'];
+
 export const canonicalLabel = (value) => (value && enTranslations[value]) || value;
+
+/** Always return a kanban column key, recovering Russian/legacy/missing values. */
+export function resolveRoadmapStage(roadmapStage, productStage) {
+  const fromRoadmap = canonicalLabel(roadmapStage) || roadmapStage;
+  if (ROADMAP_STAGES.includes(fromRoadmap)) return fromRoadmap;
+
+  const fromProduct = canonicalLabel(productStage) || productStage;
+  if (fromProduct === 'Paused') return 'Live';
+  if (ROADMAP_STAGES.includes(fromProduct)) return fromProduct;
+
+  return 'Discovery';
+}
 
 export function formatDisplayValue(value, t) {
   if (!value) return t('Baseline');

@@ -10,10 +10,12 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadSolutions, saveRemoteSolution } from './lib/hub-data';
 import {
   LanguageContext,
+  ROADMAP_STAGES,
   canonicalLabel,
   createTranslator,
   formatCountLabel,
   formatDisplayValue,
+  resolveRoadmapStage,
   useLang,
 } from './lib/i18n';
 
@@ -45,14 +47,14 @@ const seedTechnicalProfiles = [
 ];
 
 const normaliseSolutions = (items) => items.map((item, index) => {
-  const id = item.id || `seed-${index}-${item.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
+  const id = item.id || `seed-${index}-${String(item.name || 'solution').toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
   const seed = seedSolutions.find((candidate) => candidate.id === id || candidate.name === item.name);
   const merged = { ...seed, ...item, id };
   return {
     ...merged,
-    stage: canonicalLabel(merged.stage) || merged.stage,
-    health: canonicalLabel(merged.health) || merged.health,
-    roadmapStage: canonicalLabel(merged.roadmapStage) || merged.roadmapStage || 'Discovery',
+    stage: canonicalLabel(merged.stage) || merged.stage || 'Building',
+    health: canonicalLabel(merged.health) || merged.health || 'Attention',
+    roadmapStage: resolveRoadmapStage(merged.roadmapStage, merged.stage),
   };
 });
 const normaliseSubscriptions = (items) => items.map((item, index) => ({
@@ -77,8 +79,13 @@ function App() {
   const [auth, setAuth] = useState({ state: developmentMode || !isSupabaseConfigured ? 'demo' : 'loading', role: 'admin', email: '' });
   const [saveError, setSaveError] = useState('');
   const [solutions, setSolutions] = useState(() => {
-    try { return normaliseSolutions(JSON.parse(localStorage.getItem('pine-product-hub-solutions')) || seedSolutions); }
-    catch { return seedSolutions; }
+    try {
+      const stored = JSON.parse(localStorage.getItem('pine-product-hub-solutions'));
+      if (Array.isArray(stored) && stored.length > 0) return normaliseSolutions(stored);
+      return normaliseSolutions(seedSolutions);
+    } catch {
+      return normaliseSolutions(seedSolutions);
+    }
   });
   const [editingSolution, setEditingSolution] = useState(null);
   const [selectedSolution, setSelectedSolution] = useState(null);
@@ -119,7 +126,7 @@ function App() {
       setAuth({ state: 'ready', role, email: session.user.email || '' });
       setView(role === 'executive' ? 'executive' : 'admin');
       setSection(role === 'executive' ? 'Executive overview' : 'Overview');
-      try { setSolutions(await loadSolutions()); } catch (loadError) { setSaveError(loadError.message); }
+      try { setSolutions(normaliseSolutions(await loadSolutions())); } catch (loadError) { setSaveError(loadError.message); }
     };
     supabase.auth.getSession().then(({ data }) => resolveSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => resolveSession(session));
@@ -329,8 +336,7 @@ function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
 
 function RoadmapBoard({ solutions, onOpen, onEdit }) {
   const { language, t } = useLang();
-  const stages = ['Discovery', 'Building', 'Testing', 'Live', 'Measuring outcome'];
-  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t('Move every solution forward through a visible, evidence-led lifecycle.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{stages.map((stage) => { const items = solutions.filter((solution) => (canonicalLabel(solution.roadmapStage) || solution.roadmapStage) === stage); return <article className="roadmap-column" key={stage}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
+  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t('Move every solution forward through a visible, evidence-led lifecycle.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
 }
 
 function SolutionDetail({ solution, onBack, onEdit }) {
@@ -361,7 +367,7 @@ function SolutionEditor({ solution, onClose, onSave }) {
       detail: draft.detail.trim(),
       stage: canonicalLabel(draft.stage) || draft.stage,
       health: canonicalLabel(draft.health) || draft.health,
-      roadmapStage: canonicalLabel(draft.roadmapStage) || draft.roadmapStage || 'Discovery',
+      roadmapStage: resolveRoadmapStage(draft.roadmapStage, draft.stage),
     });
   };
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">

@@ -212,7 +212,11 @@ function App() {
           </section>}
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
-          {isExecutive ? <ExecutiveContent solutions={solutions} onEdit={setEditingSolution} onOpen={setSelectedSolution} /> : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={setEditingSolution} onCreate={createSolution} onOpen={setSelectedSolution} onEditSubscription={setEditingSubscription} onCreateSubscription={createSubscription} onEditProfile={setEditingProfile}/>}
+          {section === 'Roadmap'
+            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={setEditingSolution}/>
+            : isExecutive
+              ? <ExecutiveContent solutions={solutions} onEdit={setEditingSolution} onOpen={setSelectedSolution} />
+              : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={setEditingSolution} onCreate={createSolution} onOpen={setSelectedSolution} onEditSubscription={setEditingSubscription} onCreateSubscription={createSubscription} onEditProfile={setEditingProfile}/>}
           </>}
         </div>
       </main>

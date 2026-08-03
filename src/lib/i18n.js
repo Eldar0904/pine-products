@@ -188,6 +188,8 @@ export const ruTranslations = {
   '98% success rate this month': '98% успешных запусков в этом месяце',
   'Usage tracking not connected yet': 'Отслеживание использования ещё не подключено',
   'Not connected': 'Не подключено',
+  'Editable now · wire usage feed when ready': 'Можно редактировать · подключите поток использования позже',
+  'From connected usage tracking': 'Из подключённого отслеживания использования',
   'products require a decision or baseline': 'продукты требуют решения или базового уровня',
   'Catalog Matcher · EduMax baseline': 'Catalog Matcher · базовый уровень EduMax',
   'currently serving departments': 'сейчас обслуживают отделы',

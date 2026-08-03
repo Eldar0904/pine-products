@@ -18,6 +18,7 @@ import {
   resolveRoadmapStage,
   useLang,
 } from './lib/i18n';
+import { applyRemoteUsage, getLaunches, loadRemoteUsage, totalLaunches } from './lib/usage';
 
 const seedSolutions = [
   { id: 'offer-generator', name: 'Commercial Offer Generator', department: 'Procurement', stage: 'Live', health: 'Healthy', value: '28 hrs', detail: '86 completed offers this month', accent: 'teal', owner: 'Eldar Pine', purpose: 'Generate consistent commercial offers from approved procurement data.', businessCase: 'Reduce repeated formatting work and improve offer turnaround time.', nextStep: 'Validate the monthly time-saving baseline with Procurement.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-09', blocker: '', aiOpportunity: 'Draft offer summary from structured data after human review.' },
@@ -55,6 +56,8 @@ const normaliseSolutions = (items) => items.map((item, index) => {
     stage: canonicalLabel(merged.stage) || merged.stage || 'Building',
     health: canonicalLabel(merged.health) || merged.health || 'Attention',
     roadmapStage: resolveRoadmapStage(merged.roadmapStage, merged.stage),
+    launches: getLaunches(merged),
+    usageSource: merged.usageSource === 'tracked' ? 'tracked' : 'manual',
   };
 });
 const normaliseSubscriptions = (items) => items.map((item, index) => ({
@@ -116,6 +119,14 @@ function App() {
   }, [language]);
   useEffect(() => { if (selectedSolution) window.scrollTo({ top: 0, behavior: 'smooth' }); }, [selectedSolution]);
   useEffect(() => {
+    let cancelled = false;
+    loadRemoteUsage().then((usage) => {
+      if (cancelled || !usage) return;
+      setSolutions((current) => applyRemoteUsage(current, usage));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
     if (developmentMode || !isSupabaseConfigured) return undefined;
     const resolveSession = async (session) => {
       if (!session?.user) { setAuth({ state: 'signed_out', role: '', email: '' }); return; }
@@ -145,7 +156,7 @@ function App() {
     } catch (error) { setSaveError(error.message || 'The Solution could not be saved.'); }
   };
   const createSolution = () => setEditingSolution({
-    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', value: 'Baseline', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
+    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', value: 'Baseline', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
   });
   const saveSubscription = (subscription) => {
     setSubscriptions(current => current.some(item => item.id === subscription.id)
@@ -212,9 +223,9 @@ function App() {
           </section>}
 
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="metrics-grid">
-            <Metric label={t(isExecutive ? 'Validated value delivered' : 'Active solutions')} value={isExecutive ? formatDisplayValue(`${solutions.reduce((total, item) => total + (Number.parseInt(item.value, 10) || 0), 0)} hrs`, t) : '4'} sub={t(isExecutive ? 'measured time saved per month' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
-            <Metric label={t(isExecutive ? 'Solutions healthy' : 'Successful runs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : '—'} sub={t(isExecutive ? 'portfolio health signal' : 'Usage tracking not connected yet')} icon={<ShieldCheck size={19}/>} />
-            <Metric label={t(isExecutive ? 'Decision needed' : 'Needs attention')} value={isExecutive ? solutions.filter((item) => item.health !== 'Healthy').length : '2'} sub={t(isExecutive ? 'products require a decision or baseline' : 'Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
+            <Metric label={t(isExecutive ? 'Validated value delivered' : 'Active solutions')} value={isExecutive ? formatDisplayValue(`${solutions.reduce((total, item) => total + (Number.parseInt(item.value, 10) || 0), 0)} hrs`, t) : String(solutions.length)} sub={t(isExecutive ? 'measured time saved per month' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
+            <Metric label={t(isExecutive ? 'Solutions healthy' : 'Successful runs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : String(totalLaunches(solutions))} sub={t(isExecutive ? 'portfolio health signal' : (solutions.some((item) => item.usageSource === 'tracked') ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready'))} icon={<ShieldCheck size={19}/>} />
+            <Metric label={t(isExecutive ? 'Decision needed' : 'Needs attention')} value={isExecutive ? solutions.filter((item) => item.health !== 'Healthy').length : solutions.filter((item) => item.health !== 'Healthy').length} sub={t(isExecutive ? 'products require a decision or baseline' : 'Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
             <Metric label={t(isExecutive ? 'Live products' : 'Renewal watch')} value={isExecutive ? solutions.filter((item) => item.stage === 'Live').length : '1'} sub={t(isExecutive ? 'currently serving departments' : 'Operational review due in 16 days')} icon={<Server size={19}/>} />
           </section>}
 
@@ -288,7 +299,7 @@ function AdminContent({ section, solutions, subscriptions, technicalProfiles, on
       <div className="work-list">{workItems.map(item => <div className="work-item" key={item.title}><span className={`status-dot ${item.tone}`}></span><div><strong>{t(item.title)}</strong><span>{t(item.solution)} · {t('Due {date}').replace('{date}', t(item.due))}</span></div><em>{t(item.status)}</em></div>)}</div>
     </article>
     <article className="panel operations-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Operations')}</p><h2>{t('System pulse')}</h2></div><Activity size={19}/></div>
-      <div className="pulse-row"><span>{t('Live tool health')}</span><strong>{t('Healthy')}</strong></div><div className="pulse-row"><span>{t('Usage events recorded')}</span><strong>{t('Not connected')}</strong></div><div className="pulse-row"><span>{t('Open operational risks')}</span><strong className="warning">2</strong></div><button className="text-button">{t('Open operations')} <ArrowRight size={15}/></button>
+      <div className="pulse-row"><span>{t('Live tool health')}</span><strong>{t('Healthy')}</strong></div><div className="pulse-row"><span>{t('Usage events recorded')}</span><strong>{totalLaunches(solutions)}</strong></div><div className="pulse-row"><span>{t('Open operational risks')}</span><strong className={technicalProfiles.some((profile) => profile.risk && profile.risk !== 'No current risk') ? 'warning' : ''}>{technicalProfiles.filter((profile) => profile.risk && profile.risk !== 'No current risk').length}</strong></div><button className="text-button">{t('Open operations')} <ArrowRight size={15}/></button>
     </article>
   </section>
   <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t(section === 'Overview' ? 'Solution portfolio' : section)}</p><h2>{t(section === 'Overview' ? 'Products at a glance' : `${section} overview`)}</h2></div><button className="text-button" onClick={onCreate}>{t('Add solution')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>
@@ -349,7 +360,7 @@ function SolutionDetail({ solution, onBack, onEdit }) {
   </section>
   <section className="detail-grid">
     <article className="panel detail-main"><DetailBlock label={t('Purpose')} text={t(solution.purpose) || t('Add the purpose this product serves.')}/><DetailBlock label={t('Business case')} text={t(solution.businessCase) || t('Add the measurable business problem or value hypothesis.')}/><DetailBlock label={t('Current status')} text={t(solution.detail)}/></article>
-    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Outcome')}</p><strong className="detail-value">{formatDisplayValue(solution.value, t)}</strong><p className="detail-note">{t('Validated value per month')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
+    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Outcome')}</p><strong className="detail-value">{formatDisplayValue(solution.value, t)}</strong><p className="detail-note">{t('Validated value per month')}</p></article><article className="panel"><p className="eyebrow">{t('Successful runs')}</p><strong className="detail-value">{getLaunches(solution)}</strong><p className="detail-note">{t(solution.usageSource === 'tracked' ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
   </section>
 </>; }
 function DetailBlock({ label, text }) { return <section className="detail-block"><p className="eyebrow">{label}</p><p>{text}</p></section>; }
@@ -368,6 +379,8 @@ function SolutionEditor({ solution, onClose, onSave }) {
       stage: canonicalLabel(draft.stage) || draft.stage,
       health: canonicalLabel(draft.health) || draft.health,
       roadmapStage: resolveRoadmapStage(draft.roadmapStage, draft.stage),
+      launches: getLaunches({ launches: draft.launches }),
+      usageSource: draft.usageSource === 'tracked' ? 'tracked' : 'manual',
     });
   };
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
@@ -376,8 +389,8 @@ function SolutionEditor({ solution, onClose, onSave }) {
       <label>{t('Solution name')}<input autoFocus value={draft.name} onChange={update('name')} placeholder={t('e.g. Supplier Catalog Matcher')} required /></label>
       <label>{t('Department')}<input value={draft.department} onChange={update('department')} placeholder={t('e.g. Procurement')} required /></label>
       <div className="form-grid"><label>{t('Stage')}<select value={canonicalLabel(draft.stage) || draft.stage} onChange={update('stage')}><option value="Building">{t('Building')}</option><option value="Testing">{t('Testing')}</option><option value="Live">{t('Live')}</option><option value="Paused">{t('Paused')}</option></select></label><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label></div>
-      <div className="form-grid"><label>{t('Validated value')}<input value={draft.value} onChange={update('value')} placeholder={t('e.g. 12 hrs')} /></label><label>{t('Colour')}<select value={draft.accent} onChange={update('accent')}><option value="teal">{t('Teal')}</option><option value="blue">{t('Blue')}</option><option value="amber">{t('Amber')}</option><option value="violet">{t('Violet')}</option></select></label></div>
-      <label>{t('Product owner')}<input value={draft.owner || ''} onChange={update('owner')} placeholder={t('e.g. Eldar Pine')} /></label>
+      <div className="form-grid"><label>{t('Validated value')}<input value={draft.value} onChange={update('value')} placeholder={t('e.g. 12 hrs')} /></label><label>{t('Successful runs')}<input type="number" min="0" step="1" value={draft.launches ?? 0} onChange={update('launches')} placeholder="0" /></label></div>
+      <div className="form-grid"><label>{t('Colour')}<select value={draft.accent} onChange={update('accent')}><option value="teal">{t('Teal')}</option><option value="blue">{t('Blue')}</option><option value="amber">{t('Amber')}</option><option value="violet">{t('Violet')}</option></select></label><label>{t('Product owner')}<input value={draft.owner || ''} onChange={update('owner')} placeholder={t('e.g. Eldar Pine')} /></label></div>
       <label>{t('Purpose')}<textarea value={draft.purpose || ''} onChange={update('purpose')} rows="3" placeholder={t('What does this solution help the department do?')} /></label>
       <label>{t('Business case')}<textarea value={draft.businessCase || ''} onChange={update('businessCase')} rows="3" placeholder={t('What time, cost, quality, or risk problem does it address?')} /></label>
       <label>{t('Current status')}<textarea value={draft.detail} onChange={update('detail')} rows="3" placeholder={t('Describe adoption, delivery progress or the next review.')} required /></label>

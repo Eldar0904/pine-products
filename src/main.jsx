@@ -36,13 +36,6 @@ const seedTechnicalProfiles = [
   { id: 'ops-edumax', solutionId: 'edumax-administration', hosting: 'Netlify', repository: 'Not linked', database: 'Not recorded', supportOwner: 'Eldar Pine', runbook: 'Academic administration support notes', risk: 'No current risk', health: 'Healthy' }
 ];
 
-const normaliseSolutions = (items) => items.map((item, index) => {
-  const id = item.id || `seed-${index}-${item.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
-  const seed = seedSolutions.find((candidate) => candidate.id === id || candidate.name === item.name);
-  return { ...seed, ...item, id };
-});
-const normaliseSubscriptions = (items) => items.map((item, index) => ({ ...item, id: item.id || `subscription-${index}-${item.provider.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}` }));
-const normaliseProfiles = (items) => items.map((item, index) => ({ ...item, id: item.id || `profile-${index}-${item.solutionId}` }));
 const developmentMode = import.meta.env.VITE_APP_MODE !== 'production';
 const ruTranslations = {
   'WORKING VIEW': 'РАБОЧИЙ ВИД', 'EXECUTIVE VIEW': 'ВИД ДЛЯ РУКОВОДСТВА', 'Workspace': 'Рабочая область', 'Portfolio': 'Портфель',
@@ -89,17 +82,45 @@ const ruTranslations = {
   'Academic administration support notes': 'Заметки по поддержке академического администрирования', 'Not linked': 'Не привязан', 'Not recorded': 'Не зафиксировано'
 };
 const enTranslations = Object.fromEntries(Object.entries(ruTranslations).map(([english, russian]) => [russian, english]));
+const canonicalLabel = (value) => (value && enTranslations[value]) || value;
+const normaliseSolutions = (items) => items.map((item, index) => {
+  const id = item.id || `seed-${index}-${item.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
+  const seed = seedSolutions.find((candidate) => candidate.id === id || candidate.name === item.name);
+  const merged = { ...seed, ...item, id };
+  return {
+    ...merged,
+    stage: canonicalLabel(merged.stage) || merged.stage,
+    health: canonicalLabel(merged.health) || merged.health,
+    roadmapStage: canonicalLabel(merged.roadmapStage) || merged.roadmapStage || 'Discovery',
+  };
+});
+const normaliseSubscriptions = (items) => items.map((item, index) => ({
+  ...item,
+  id: item.id || `subscription-${index}-${item.provider.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`,
+  status: canonicalLabel(item.status) || item.status,
+  category: canonicalLabel(item.category) || item.category,
+}));
+const normaliseProfiles = (items) => items.map((item, index) => ({
+  ...item,
+  id: item.id || `profile-${index}-${item.solutionId}`,
+  health: canonicalLabel(item.health) || item.health,
+}));
 function localisePage(language) {
   const dictionary = language === 'ru' ? ruTranslations : enTranslations;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach((node) => { const value = node.nodeValue; const trimmed = value.trim(); if (dictionary[trimmed]) node.nodeValue = value.replace(trimmed, dictionary[trimmed]); });
+  nodes.forEach((node) => {
+    if (node.parentElement?.closest('script, style')) return;
+    const value = node.nodeValue;
+    const trimmed = value.trim();
+    if (dictionary[trimmed]) node.nodeValue = value.replace(trimmed, dictionary[trimmed]);
+  });
 }
 
 function App() {
   const [language, setLanguage] = useState(() => localStorage.getItem('pine-product-hub-language') || 'ru');
-  const [view, setView] = useState('admin');
+  const [view, setView] = useState(() => localStorage.getItem('pine-product-hub-view') || 'executive');
   const [section, setSection] = useState('Overview');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auth, setAuth] = useState({ state: developmentMode || !isSupabaseConfigured ? 'demo' : 'loading', role: 'admin', email: '' });
@@ -128,6 +149,7 @@ function App() {
   useEffect(() => localStorage.setItem('pine-product-hub-solutions', JSON.stringify(solutions)), [solutions]);
   useEffect(() => localStorage.setItem('pine-product-hub-subscriptions', JSON.stringify(subscriptions)), [subscriptions]);
   useEffect(() => localStorage.setItem('pine-product-hub-technical-profiles', JSON.stringify(technicalProfiles)), [technicalProfiles]);
+  useEffect(() => localStorage.setItem('pine-product-hub-view', view), [view]);
   useEffect(() => {
     localStorage.setItem('pine-product-hub-language', language);
     document.documentElement.lang = language;
@@ -306,7 +328,7 @@ function SubscriptionsRegister({ subscriptions, onEdit, onCreate }) { return <>
 function SubscriptionEditor({ subscription, onClose, onSave }) {
   const [draft, setDraft] = useState(subscription); const update = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
   const submit = (event) => { event.preventDefault(); if (draft.provider.trim()) onSave({ ...draft, provider: draft.provider.trim(), detail: draft.detail.trim() }); };
-  return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="service-editor-title"><div className="editor-heading"><div><p className="eyebrow">Admin only</p><h2 id="service-editor-title">{subscription.provider ? 'Edit service' : 'Add service'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close service editor"><X size={18}/></button></div><form onSubmit={submit}><label>Provider<input autoFocus value={draft.provider} onChange={update('provider')} placeholder="e.g. Vercel" required/></label><div className="form-grid"><label>Category<select value={draft.category} onChange={update('category')}><option>Hosting</option><option>Database & Auth</option><option>AI services</option><option>Domain & DNS</option><option>Productivity</option><option>Other</option></select></label><label>Status<select value={draft.status} onChange={update('status')}><option>Healthy</option><option>Review due</option><option>At risk</option></select></label></div><div className="form-grid"><label>Renewal / billing<input value={draft.renewal} onChange={update('renewal')} placeholder="e.g. 2026-08-15 or Monthly"/></label><label>Owner<input value={draft.owner} onChange={update('owner')} placeholder="e.g. Eldar Pine"/></label></div><label>Solutions supported<input value={draft.solutions} onChange={update('solutions')} placeholder="e.g. PINE Workflows, Catalog Matcher"/></label><label>Operational note<textarea value={draft.detail} onChange={update('detail')} rows="3" placeholder="What does this service provide, and what should the team know?"/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button"><FileText size={16}/>Save service</button></div></form></section></div>;
+  return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="service-editor-title"><div className="editor-heading"><div><p className="eyebrow">Admin only</p><h2 id="service-editor-title">{subscription.provider ? 'Edit service' : 'Add service'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close service editor"><X size={18}/></button></div><form onSubmit={submit}><label>Provider<input autoFocus value={draft.provider} onChange={update('provider')} placeholder="e.g. Vercel" required/></label><div className="form-grid"><label>Category<select value={draft.category} onChange={update('category')}><option value="Hosting">Hosting</option><option value="Database & Auth">Database & Auth</option><option value="AI services">AI services</option><option value="Domain & DNS">Domain & DNS</option><option value="Productivity">Productivity</option><option value="Other">Other</option></select></label><label>Status<select value={canonicalLabel(draft.status) || draft.status} onChange={update('status')}><option value="Healthy">Healthy</option><option value="Review due">Review due</option><option value="At risk">At risk</option></select></label></div><div className="form-grid"><label>Renewal / billing<input value={draft.renewal} onChange={update('renewal')} placeholder="e.g. 2026-08-15 or Monthly"/></label><label>Owner<input value={draft.owner} onChange={update('owner')} placeholder="e.g. Eldar Pine"/></label></div><label>Solutions supported<input value={draft.solutions} onChange={update('solutions')} placeholder="e.g. PINE Workflows, Catalog Matcher"/></label><label>Operational note<textarea value={draft.detail} onChange={update('detail')} rows="3" placeholder="What does this service provide, and what should the team know?"/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button"><FileText size={16}/>Save service</button></div></form></section></div>;
 }
 
 function OperationsWorkspace({ solutions, profiles, onEdit }) {
@@ -322,12 +344,12 @@ function OperationsWorkspace({ solutions, profiles, onEdit }) {
 function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
   const [draft, setDraft] = useState(profile); const update = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
   const submit = (event) => { event.preventDefault(); onSave(draft); };
-  return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="technical-editor-title"><div className="editor-heading"><div><p className="eyebrow">Admin only</p><h2 id="technical-editor-title">Technical profile</h2></div><button className="icon-button" onClick={onClose} aria-label="Close technical profile editor"><X size={18}/></button></div><form onSubmit={submit}><label>Solution<select value={draft.solutionId} onChange={update('solutionId')}>{solutions.map((solution) => <option key={solution.id} value={solution.id}>{solution.name}</option>)}</select></label><div className="form-grid"><label>Hosting<input value={draft.hosting || ''} onChange={update('hosting')} placeholder="e.g. Vercel"/></label><label>Database<input value={draft.database || ''} onChange={update('database')} placeholder="e.g. Supabase"/></label></div><label>Repository<input value={draft.repository || ''} onChange={update('repository')} placeholder="e.g. GitHub repository URL or name"/></label><label>Support owner<input value={draft.supportOwner || ''} onChange={update('supportOwner')} placeholder="e.g. Eldar Pine"/></label><div className="form-grid"><label>Health<select value={draft.health} onChange={update('health')}><option>Healthy</option><option>Attention</option><option>At risk</option></select></label><label>Runbook / support reference<input value={draft.runbook || ''} onChange={update('runbook')} placeholder="e.g. Deployment checklist"/></label></div><label>Operational risk<textarea value={draft.risk || ''} onChange={update('risk')} rows="3" placeholder="Leave as 'No current risk' when everything is stable."/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button"><FileText size={16}/>Save profile</button></div></form></section></div>;
+  return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="technical-editor-title"><div className="editor-heading"><div><p className="eyebrow">Admin only</p><h2 id="technical-editor-title">Technical profile</h2></div><button className="icon-button" onClick={onClose} aria-label="Close technical profile editor"><X size={18}/></button></div><form onSubmit={submit}><label>Solution<select value={draft.solutionId} onChange={update('solutionId')}>{solutions.map((solution) => <option key={solution.id} value={solution.id}>{solution.name}</option>)}</select></label><div className="form-grid"><label>Hosting<input value={draft.hosting || ''} onChange={update('hosting')} placeholder="e.g. Vercel"/></label><label>Database<input value={draft.database || ''} onChange={update('database')} placeholder="e.g. Supabase"/></label></div><label>Repository<input value={draft.repository || ''} onChange={update('repository')} placeholder="e.g. GitHub repository URL or name"/></label><label>Support owner<input value={draft.supportOwner || ''} onChange={update('supportOwner')} placeholder="e.g. Eldar Pine"/></label><div className="form-grid"><label>Health<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">Healthy</option><option value="Attention">Attention</option><option value="At risk">At risk</option></select></label><label>Runbook / support reference<input value={draft.runbook || ''} onChange={update('runbook')} placeholder="e.g. Deployment checklist"/></label></div><label>Operational risk<textarea value={draft.risk || ''} onChange={update('risk')} rows="3" placeholder="Leave as 'No current risk' when everything is stable."/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button"><FileText size={16}/>Save profile</button></div></form></section></div>;
 }
 
 function RoadmapBoard({ solutions, onOpen, onEdit }) {
   const stages = ['Discovery', 'Building', 'Testing', 'Live', 'Measuring outcome'];
-  return <><section className="registry-intro"><div><p className="eyebrow">Product direction</p><h1>Roadmap</h1><p>Move every solution forward through a visible, evidence-led lifecycle.</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> Healthy</span><span><i className="attention-dot"></i> Needs attention</span></div></section><section className="roadmap-board">{stages.map((stage) => { const items = solutions.filter((solution) => solution.roadmapStage === stage); return <article className="roadmap-column" key={stage}><div className="roadmap-column-head"><div><p>{stage}</p><span>{items.length} {items.length === 1 ? 'solution' : 'solutions'}</span></div></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{solution.department}</span></div><strong>{solution.name}</strong><p>{solution.nextStep || 'Define the next step.'}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{solution.health}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : 'No date'}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`Edit ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
+  return <><section className="registry-intro"><div><p className="eyebrow">Product direction</p><h1>Roadmap</h1><p>Move every solution forward through a visible, evidence-led lifecycle.</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> Healthy</span><span><i className="attention-dot"></i> Needs attention</span></div></section><section className="roadmap-board">{stages.map((stage) => { const items = solutions.filter((solution) => (canonicalLabel(solution.roadmapStage) || solution.roadmapStage) === stage); return <article className="roadmap-column" key={stage}><div className="roadmap-column-head"><div><p>{stage}</p><span>{items.length} {items.length === 1 ? 'solution' : 'solutions'}</span></div></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{solution.department}</span></div><strong>{solution.name}</strong><p>{solution.nextStep || 'Define the next step.'}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{solution.health}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : 'No date'}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`Edit ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
 }
 
 function SolutionDetail({ solution, onBack, onEdit }) { return <>
@@ -346,20 +368,31 @@ function DetailBlock({ label, text }) { return <section className="detail-block"
 function SolutionEditor({ solution, onClose, onSave }) {
   const [draft, setDraft] = useState(solution);
   const update = (field) => (event) => setDraft(current => ({ ...current, [field]: event.target.value }));
-  const submit = (event) => { event.preventDefault(); if (draft.name.trim()) onSave({ ...draft, name: draft.name.trim(), detail: draft.detail.trim() }); };
+  const submit = (event) => {
+    event.preventDefault();
+    if (!draft.name.trim()) return;
+    onSave({
+      ...draft,
+      name: draft.name.trim(),
+      detail: draft.detail.trim(),
+      stage: canonicalLabel(draft.stage) || draft.stage,
+      health: canonicalLabel(draft.health) || draft.health,
+      roadmapStage: canonicalLabel(draft.roadmapStage) || draft.roadmapStage || 'Discovery',
+    });
+  };
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
     <div className="editor-heading"><div><p className="eyebrow">Admin only</p><h2 id="editor-title">{solution.name ? 'Edit solution' : 'Add solution'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close editor"><X size={18}/></button></div>
     <form onSubmit={submit}>
       <label>Solution name<input autoFocus value={draft.name} onChange={update('name')} placeholder="e.g. Supplier Catalog Matcher" required /></label>
       <label>Department<input value={draft.department} onChange={update('department')} placeholder="e.g. Procurement" required /></label>
-      <div className="form-grid"><label>Stage<select value={draft.stage} onChange={update('stage')}><option>Building</option><option>Testing</option><option>Live</option><option>Paused</option></select></label><label>Health<select value={draft.health} onChange={update('health')}><option>Healthy</option><option>Attention</option><option>At risk</option></select></label></div>
+      <div className="form-grid"><label>Stage<select value={canonicalLabel(draft.stage) || draft.stage} onChange={update('stage')}><option value="Building">Building</option><option value="Testing">Testing</option><option value="Live">Live</option><option value="Paused">Paused</option></select></label><label>Health<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">Healthy</option><option value="Attention">Attention</option><option value="At risk">At risk</option></select></label></div>
       <div className="form-grid"><label>Validated value<input value={draft.value} onChange={update('value')} placeholder="e.g. 12 hrs" /></label><label>Colour<select value={draft.accent} onChange={update('accent')}><option value="teal">Teal</option><option value="blue">Blue</option><option value="amber">Amber</option><option value="violet">Violet</option></select></label></div>
       <label>Product owner<input value={draft.owner || ''} onChange={update('owner')} placeholder="e.g. Eldar Pine" /></label>
       <label>Purpose<textarea value={draft.purpose || ''} onChange={update('purpose')} rows="3" placeholder="What does this solution help the department do?" /></label>
       <label>Business case<textarea value={draft.businessCase || ''} onChange={update('businessCase')} rows="3" placeholder="What time, cost, quality, or risk problem does it address?" /></label>
       <label>Current status<textarea value={draft.detail} onChange={update('detail')} rows="3" placeholder="Describe adoption, delivery progress or the next review." required /></label>
       <label>Next step<textarea value={draft.nextStep || ''} onChange={update('nextStep')} rows="2" placeholder="What must happen next?" /></label>
-      <div className="form-grid"><label>Roadmap stage<select value={draft.roadmapStage || 'Discovery'} onChange={update('roadmapStage')}><option>Discovery</option><option>Building</option><option>Testing</option><option>Live</option><option>Measuring outcome</option></select></label><label>Target date<input type="date" value={draft.targetDate || ''} onChange={update('targetDate')}/></label></div>
+      <div className="form-grid"><label>Roadmap stage<select value={canonicalLabel(draft.roadmapStage) || draft.roadmapStage || 'Discovery'} onChange={update('roadmapStage')}><option value="Discovery">Discovery</option><option value="Building">Building</option><option value="Testing">Testing</option><option value="Live">Live</option><option value="Measuring outcome">Measuring outcome</option></select></label><label>Target date<input type="date" value={draft.targetDate || ''} onChange={update('targetDate')}/></label></div>
       <label>Blocker or decision needed<textarea value={draft.blocker || ''} onChange={update('blocker')} rows="2" placeholder="Leave empty if there is no current blocker."/></label>
       <label>Future AI opportunity<textarea value={draft.aiOpportunity || ''} onChange={update('aiOpportunity')} rows="2" placeholder="Describe a realistic future AI assist, or explain why none is planned."/></label>
       <div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button"><FileText size={16}/>Save solution</button></div>

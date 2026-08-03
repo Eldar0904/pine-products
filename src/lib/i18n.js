@@ -186,6 +186,8 @@ export const ruTranslations = {
   '2 live · 1 building · 1 needs baseline': '2 работают · 1 в разработке · 1 без базового уровня',
   'portfolio health signal': 'сигнал состояния портфеля',
   '98% success rate this month': '98% успешных запусков в этом месяце',
+  'Usage tracking not connected yet': 'Отслеживание использования ещё не подключено',
+  'Not connected': 'Не подключено',
   'products require a decision or baseline': 'продукты требуют решения или базового уровня',
   'Catalog Matcher · EduMax baseline': 'Catalog Matcher · базовый уровень EduMax',
   'currently serving departments': 'сейчас обслуживают отделы',

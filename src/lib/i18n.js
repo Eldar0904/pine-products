@@ -18,6 +18,8 @@ export const ruTranslations = {
   'Executive access': 'Доступ руководства',
   Administrator: 'Администратор',
   'Good morning, Eldar.': 'Доброе утро, Элдар.',
+  'Good afternoon, Eldar.': 'Добрый день, Элдар.',
+  'Good evening, Eldar.': 'Добрый вечер, Элдар.',
   'A clear view of product value.': 'Понятный обзор ценности продуктов.',
   'A concise view of the internal solutions serving PINE teams.': 'Краткий обзор внутренних решений для команд PINE.',
   'Your automation portfolio is stable. Two items need attention this week.': 'Портфель автоматизации стабилен. На этой неделе требуют внимания два пункта.',

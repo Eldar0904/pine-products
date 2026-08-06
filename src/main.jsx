@@ -74,7 +74,21 @@ const normaliseProfiles = (items) => items.map((item, index) => ({
 
 const developmentMode = import.meta.env.VITE_APP_MODE !== 'production';
 
+const greetingForHour = (hour) => {
+  if (hour < 12) return 'Good morning, Eldar.';
+  if (hour < 18) return 'Good afternoon, Eldar.';
+  return 'Good evening, Eldar.';
+};
+
+const formatCurrentDate = (date, language) => {
+  const formatted = new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+};
+
 function App() {
+  const [now, setNow] = useState(() => new Date());
   const [language, setLanguage] = useState(() => localStorage.getItem('pine-product-hub-language') || 'ru');
   const [view, setView] = useState(() => localStorage.getItem('pine-product-hub-view') || 'executive');
   const [section, setSection] = useState('Overview');
@@ -113,6 +127,10 @@ function App() {
   useEffect(() => localStorage.setItem('pine-product-hub-subscriptions', JSON.stringify(subscriptions)), [subscriptions]);
   useEffect(() => localStorage.setItem('pine-product-hub-technical-profiles', JSON.stringify(technicalProfiles)), [technicalProfiles]);
   useEffect(() => localStorage.setItem('pine-product-hub-view', view), [view]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     localStorage.setItem('pine-product-hub-language', language);
     document.documentElement.lang = language;
@@ -215,8 +233,8 @@ function App() {
           {selectedSolution ? <SolutionDetail solution={selectedSolution} onBack={() => setSelectedSolution(null)} onEdit={setEditingSolution} /> : <>
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="page-intro">
             <div>
-              <p className="eyebrow">{t(isExecutive ? 'Portfolio health · July 2026' : 'Monday, 30 July')}</p>
-              <h1>{t(isExecutive ? 'A clear view of product value.' : 'Good morning, Eldar.')}</h1>
+              <p className="eyebrow">{isExecutive ? t('Portfolio health · July 2026') : formatCurrentDate(now, language)}</p>
+              <h1>{t(isExecutive ? 'A clear view of product value.' : greetingForHour(now.getHours()))}</h1>
               <p>{t(isExecutive ? 'A concise view of the internal solutions serving PINE teams.' : 'Your automation portfolio is stable. Two items need attention this week.')}</p>
             </div>
             {!isExecutive && <button className="primary-button" onClick={createSolution}><Plus size={18}/> {t('Add solution')}</button>}

@@ -171,7 +171,12 @@ export async function loadExecutiveSnapshot(env = process.env) {
       if (Array.isArray(rows) && rows.length > 0) {
         return buildExecutivePreview(rows.map(fromRecord), 'supabase')
       }
+      console.warn('[executive] Supabase returned no solution rows; using seed data')
+    } else {
+      console.warn(`[executive] Supabase request failed with HTTP ${res.status}; using seed data`)
     }
+  } else {
+    console.warn(`[executive] Supabase environment missing (url=${Boolean(url)}, key=${Boolean(key)}); using seed data`)
   }
 
   return buildExecutivePreview(SEED_SOLUTIONS, 'seed')

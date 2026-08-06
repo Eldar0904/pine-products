@@ -36,6 +36,9 @@ create table public.solutions (
   validated_value text not null default 'Baseline',
   current_status text not null default '',
   accent text not null default 'teal' check (accent in ('teal', 'blue', 'amber', 'violet')),
+  roadmap_stage text not null default 'Discovery' check (roadmap_stage in ('Discovery', 'Building', 'Testing', 'Live', 'Measuring outcome')),
+  next_step text not null default '',
+  target_date date,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

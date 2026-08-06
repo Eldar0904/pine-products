@@ -121,7 +121,7 @@ function App() {
   const t = useMemo(() => createTranslator(language), [language]);
   const isExecutive = view === 'executive' || auth.role === 'executive';
   const nav = isExecutive
-    ? ['Executive overview', 'Roadmap']
+    ? ['Executive overview']
     : ['Overview', 'Roadmap', 'Operations', 'Subscriptions'];
   const activeName = section === 'Executive overview' ? 'Overview' : section;
 
@@ -178,6 +178,13 @@ function App() {
   const createSolution = () => setEditingSolution({
     id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
   });
+  const createRoadmapCard = (roadmapStage) => setEditingSolution({
+    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage, targetDate: '', blocker: '', aiOpportunity: ''
+  });
+  const moveRoadmapCard = (solution, roadmapStage) => {
+    if (resolveRoadmapStage(solution.roadmapStage, solution.stage) === roadmapStage) return;
+    saveSolution({ ...solution, roadmapStage });
+  };
   const saveSubscription = (subscription) => {
     setSubscriptions(current => current.some(item => item.id === subscription.id)
       ? current.map(item => item.id === subscription.id ? subscription : item)
@@ -250,8 +257,8 @@ function App() {
           </section>}
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
-          {section === 'Roadmap'
-            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={setEditingSolution}/>
+          {!isExecutive && section === 'Roadmap'
+            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={setEditingSolution} onCreate={createRoadmapCard} onMove={moveRoadmapCard}/>
             : isExecutive
               ? <ExecutiveContent solutions={solutions} onEdit={setEditingSolution} onOpen={setSelectedSolution} />
               : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={setEditingSolution} onCreate={createSolution} onOpen={setSelectedSolution} onEditSubscription={setEditingSubscription} onCreateSubscription={createSubscription} onEditProfile={setEditingProfile}/>}
@@ -286,11 +293,14 @@ function SignInScreen() {
 function Metric({ label, value, sub, icon, tone }) { return <article className={`metric-card ${tone || ''}`}><div className="metric-icon">{icon}</div><p>{label}</p><strong>{value}</strong><span>{sub}</span></article>; }
 
 function ExecutiveContent({ solutions, onEdit, onOpen }) {
-  const { language, t } = useLang();
+  const { t } = useLang();
   const byDepartment = solutions.reduce((groups, solution) => { groups[solution.department] = groups[solution.department] || []; groups[solution.department].push(solution); return groups; }, {});
   const attention = solutions.filter((solution) => solution.health !== 'Healthy');
   const decisions = attention.filter((solution) => solution.blocker || solution.stage !== 'Live');
-  const milestones = solutions.filter((solution) => solution.targetDate).sort((a, b) => a.targetDate.localeCompare(b.targetDate)).slice(0, 3);
+  const developmentStages = ['Discovery', 'Building', 'Testing'];
+  const comingSoon = solutions
+    .filter((solution) => developmentStages.includes(resolveRoadmapStage(solution.roadmapStage, solution.stage)))
+    .sort((a, b) => developmentStages.indexOf(resolveRoadmapStage(a.roadmapStage, a.stage)) - developmentStages.indexOf(resolveRoadmapStage(b.roadmapStage, b.stage)));
   const attentionTitle = attention.length
     ? formatCountLabel(attention.length, '{count} decision need attention.', '{count} decisions need attention.', t)
     : t('Portfolio is on track.');
@@ -303,7 +313,7 @@ function ExecutiveContent({ solutions, onEdit, onOpen }) {
   </section>
   <section className="section-grid exec-lower-grid">
     <article className="panel decision-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Leadership attention')}</p><h2>{t('Decisions & risks')}</h2></div><span className="decision-count">{decisions.length}</span></div>{decisions.length ? <div className="decision-list">{decisions.map((solution) => <div className="decision-item" key={solution.id}><div><strong>{t(solution.name)}</strong><span>{t(solution.blocker || solution.nextStep)}</span></div><b>{t(solution.health)}</b></div>)}</div> : <p className="empty-state">{t('No open product decisions are recorded.')}</p>}</article>
-    <article className="panel roadmap-summary"><div className="panel-heading"><div><p className="eyebrow">{t('Forward view')}</p><h2>{t('Next milestones')}</h2></div><Sparkles size={18}/></div><div className="milestone-list">{milestones.map((solution) => <div className="milestone-item" key={solution.id}><span>{new Date(solution.targetDate + 'T00:00:00').toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'})}</span><div><strong>{t(solution.name)}</strong><small>{t(solution.nextStep)}</small></div></div>)}</div></article>
+    <article className="panel roadmap-summary"><div className="panel-heading"><div><p className="eyebrow">{t('Forward view')}</p><h2>{t('Coming soon')}</h2></div><Sparkles size={18}/></div>{comingSoon.length ? <div className="milestone-list">{comingSoon.map((solution) => <div className="milestone-item" key={solution.id}><div><strong>{t(solution.name)}</strong><small>{t(solution.nextStep) || t('Define the next step.')}</small></div></div>)}</div> : <p className="empty-state">{t('No solutions are currently in development.')}</p>}</article>
   </section>
   <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Current product health')}</h2></div><button className="text-button">{t('All solutions')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>
 </>; }
@@ -311,7 +321,6 @@ function ExecutiveContent({ solutions, onEdit, onOpen }) {
 function AdminContent({ section, solutions, subscriptions, technicalProfiles, onEdit, onCreate, onOpen, onEditSubscription, onCreateSubscription, onEditProfile }) {
   const { t } = useLang();
   if (section === 'Subscriptions') return <SubscriptionsRegister subscriptions={subscriptions} onEdit={onEditSubscription} onCreate={onCreateSubscription}/>;
-  if (section === 'Roadmap') return <RoadmapBoard solutions={solutions} onOpen={onOpen} onEdit={onEdit}/>;
   if (section === 'Operations') return <OperationsWorkspace solutions={solutions} profiles={technicalProfiles} onEdit={onEditProfile}/>;
   return <>
   <section className="section-grid admin-grid">
@@ -365,9 +374,18 @@ function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="technical-editor-title"><div className="editor-heading"><div><p className="eyebrow">{t('Admin only')}</p><h2 id="technical-editor-title">{t('Technical profile')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close technical profile editor')}><X size={18}/></button></div><form onSubmit={submit}><label>{t('Solution')}<select value={draft.solutionId} onChange={update('solutionId')}>{solutions.map((solution) => <option key={solution.id} value={solution.id}>{t(solution.name)}</option>)}</select></label><div className="form-grid"><label>{t('Hosting')}<input value={draft.hosting || ''} onChange={update('hosting')} placeholder={t('e.g. Vercel')}/></label><label>{t('Database')}<input value={draft.database || ''} onChange={update('database')} placeholder={t('e.g. Supabase')}/></label></div><label>{t('Repository')}<input value={draft.repository || ''} onChange={update('repository')} placeholder={t('e.g. GitHub repository URL or name')}/></label><label>{t('Support owner')}<input value={draft.supportOwner || ''} onChange={update('supportOwner')} placeholder={t('e.g. Eldar Pine')}/></label><div className="form-grid"><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label><label>{t('Runbook / support reference')}<input value={draft.runbook || ''} onChange={update('runbook')} placeholder={t('e.g. Deployment checklist')}/></label></div><label>{t('Operational risk')}<textarea value={draft.risk || ''} onChange={update('risk')} rows="3" placeholder={t("Leave as 'No current risk' when everything is stable.")}/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save profile')}</button></div></form></section></div>;
 }
 
-function RoadmapBoard({ solutions, onOpen, onEdit }) {
+function RoadmapBoard({ solutions, onOpen, onEdit, onCreate, onMove }) {
   const { language, t } = useLang();
-  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t('Move every solution forward through a visible, evidence-led lifecycle.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
+  const startDrag = (event, solution) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', solution.id);
+  };
+  const dropCard = (event, stage) => {
+    event.preventDefault();
+    const solution = solutions.find((item) => item.id === event.dataTransfer.getData('text/plain'));
+    if (solution) onMove(solution, stage);
+  };
+  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t('Drag cards between stages or add a new card directly to a stage.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => dropCard(event, stage)}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div><button className="roadmap-add" onClick={() => onCreate(stage)} aria-label={`${t('Add card')} · ${t(stage)}`}><Plus size={14}/></button></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" draggable onDragStart={(event) => startDrag(event, solution)} onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
 }
 
 function SolutionDetail({ solution, onBack, onEdit }) {

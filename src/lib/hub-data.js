@@ -8,7 +8,10 @@ const fromRecord = (record) => ({
   health: record.health === 'at_risk' ? 'At risk' : record.health[0].toUpperCase() + record.health.slice(1),
   training: ['Completed', 'In process', 'Soon'].includes(record.validated_value) ? record.validated_value : undefined,
   detail: record.current_status,
-  accent: record.accent
+  accent: record.accent,
+  roadmapStage: record.roadmap_stage,
+  nextStep: record.next_step,
+  targetDate: record.target_date
 });
 
 const toDbStage = (stage) => stage.toLowerCase();
@@ -17,7 +20,7 @@ const toDbHealth = (health) => health.toLowerCase().replace(' ', '_');
 export async function loadSolutions() {
   const { data, error } = await supabase
     .from('solutions')
-    .select('id, name, stage, health, validated_value, current_status, accent, departments(name)')
+    .select('id, name, stage, health, validated_value, current_status, accent, roadmap_stage, next_step, target_date, departments(name)')
     .order('name');
   if (error) throw error;
   return data.map(fromRecord);
@@ -49,7 +52,10 @@ export async function saveRemoteSolution(solution) {
     health: toDbHealth(solution.health),
     validated_value: solution.training,
     current_status: solution.detail,
-    accent: solution.accent
+    accent: solution.accent,
+    roadmap_stage: solution.roadmapStage,
+    next_step: solution.nextStep || '',
+    target_date: solution.targetDate || null
   };
   const { error } = await supabase.from('solutions').upsert(record);
   if (error) throw error;

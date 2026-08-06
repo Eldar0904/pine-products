@@ -6,7 +6,7 @@ const fromRecord = (record) => ({
   department: record.departments?.name || 'Unassigned',
   stage: record.stage[0].toUpperCase() + record.stage.slice(1),
   health: record.health === 'at_risk' ? 'At risk' : record.health[0].toUpperCase() + record.health.slice(1),
-  value: record.validated_value,
+  training: ['Completed', 'In process', 'Soon'].includes(record.validated_value) ? record.validated_value : undefined,
   detail: record.current_status,
   accent: record.accent
 });
@@ -47,7 +47,7 @@ export async function saveRemoteSolution(solution) {
     department_id: department.id,
     stage: toDbStage(solution.stage),
     health: toDbHealth(solution.health),
-    validated_value: solution.value,
+    validated_value: solution.training,
     current_status: solution.detail,
     accent: solution.accent
   };

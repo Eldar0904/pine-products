@@ -14,7 +14,6 @@ import {
   canonicalLabel,
   createTranslator,
   formatCountLabel,
-  formatDisplayValue,
   resolveRoadmapStage,
   useLang,
 } from './lib/i18n';
@@ -55,6 +54,9 @@ const normaliseSolutions = (items) => items.map((item, index) => {
     ...merged,
     stage: canonicalLabel(merged.stage) || merged.stage || 'Building',
     health: canonicalLabel(merged.health) || merged.health || 'Attention',
+    training: ['Completed', 'In process', 'Soon'].includes(merged.training)
+      ? merged.training
+      : merged.stage === 'Live' ? 'Completed' : merged.stage === 'Building' ? 'In process' : 'Soon',
     roadmapStage: resolveRoadmapStage(merged.roadmapStage, merged.stage),
     launches: getLaunches(merged),
     usageSource: merged.usageSource === 'tracked' ? 'tracked' : 'manual',
@@ -174,7 +176,7 @@ function App() {
     } catch (error) { setSaveError(error.message || 'The Solution could not be saved.'); }
   };
   const createSolution = () => setEditingSolution({
-    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', value: 'Baseline', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
+    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
   });
   const saveSubscription = (subscription) => {
     setSubscriptions(current => current.some(item => item.id === subscription.id)
@@ -241,7 +243,7 @@ function App() {
           </section>}
 
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="metrics-grid">
-            <Metric label={t(isExecutive ? 'Validated value delivered' : 'Active solutions')} value={isExecutive ? formatDisplayValue(`${solutions.reduce((total, item) => total + (Number.parseInt(item.value, 10) || 0), 0)} hrs`, t) : String(solutions.length)} sub={t(isExecutive ? 'measured time saved per month' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
+            <Metric label={t(isExecutive ? 'Training completed' : 'Active solutions')} value={isExecutive ? `${solutions.filter((item) => item.training === 'Completed').length} / ${solutions.length}` : String(solutions.length)} sub={t(isExecutive ? 'products with completed training' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
             <Metric label={t(isExecutive ? 'Solutions healthy' : 'Successful runs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : String(totalLaunches(solutions))} sub={t(isExecutive ? 'portfolio health signal' : (solutions.some((item) => item.usageSource === 'tracked') ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready'))} icon={<ShieldCheck size={19}/>} />
             <Metric label={t(isExecutive ? 'Decision needed' : 'Needs attention')} value={isExecutive ? solutions.filter((item) => item.health !== 'Healthy').length : solutions.filter((item) => item.health !== 'Healthy').length} sub={t(isExecutive ? 'products require a decision or baseline' : 'Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
             <Metric label={t(isExecutive ? 'Live products' : 'Renewal watch')} value={isExecutive ? solutions.filter((item) => item.stage === 'Live').length : '1'} sub={t(isExecutive ? 'currently serving departments' : 'Operational review due in 16 days')} icon={<Server size={19}/>} />
@@ -294,8 +296,8 @@ function ExecutiveContent({ solutions, onEdit, onOpen }) {
     : t('Portfolio is on track.');
   return <>
   <section className="section-grid exec-grid">
-    <article className="panel value-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Department impact')}</p><h2>{t('Value by department')}</h2></div><span className="panel-note">{t('Measured time saved')}</span></div>
-      <div className="impact-list">{Object.entries(byDepartment).map(([department, items]) => { const hours = items.reduce((total, item) => total + (Number.parseInt(item.value, 10) || 0), 0); const width = Math.max(10, Math.round((hours / 42) * 100)); return <Impact key={department} department={t(department)} value={hours ? formatDisplayValue(`${hours} hrs`, t) : t('Baseline')} width={width} note={formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}/>; })}</div>
+    <article className="panel value-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Department impact')}</p><h2>{t('Training by department')}</h2></div><span className="panel-note">{t('Completion status')}</span></div>
+      <div className="impact-list">{Object.entries(byDepartment).map(([department, items]) => { const completed = items.filter((item) => item.training === 'Completed').length; const width = Math.max(10, Math.round((completed / items.length) * 100)); return <Impact key={department} department={t(department)} value={`${completed}/${items.length}`} width={width} note={t('training completed')}/>; })}</div>
     </article>
     <article className="panel dark-panel"><p className="eyebrow">{t('Portfolio signal')}</p><h2>{attentionTitle}</h2><p>{t(attention.length ? 'Focus the next review on products with an unresolved health signal or delivery decision.' : 'All products currently have a healthy operating signal.')}</p><div className="dark-stat"><strong>{solutions.length}</strong><span>{t('products in the portfolio')}</span></div></article>
   </section>
@@ -327,7 +329,7 @@ function Impact({ department, value, width, note }) { return <div className="imp
 
 function SolutionTable({ solutions, onEdit, onOpen }) {
   const { t } = useLang();
-  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Validated value')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`}><i></i>{t(s.health)}</span><strong>{formatDisplayValue(s.value, t)}</strong><button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button></div>)}</div>;
+  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Training')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`}><i></i>{t(s.health)}</span><strong>{t(s.training)}</strong><button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button></div>)}</div>;
 }
 
 function SubscriptionsRegister({ subscriptions, onEdit, onCreate }) {
@@ -378,7 +380,7 @@ function SolutionDetail({ solution, onBack, onEdit }) {
   </section>
   <section className="detail-grid">
     <article className="panel detail-main"><DetailBlock label={t('Purpose')} text={t(solution.purpose) || t('Add the purpose this product serves.')}/><DetailBlock label={t('Business case')} text={t(solution.businessCase) || t('Add the measurable business problem or value hypothesis.')}/><DetailBlock label={t('Current status')} text={t(solution.detail)}/></article>
-    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Outcome')}</p><strong className="detail-value">{formatDisplayValue(solution.value, t)}</strong><p className="detail-note">{t('Validated value per month')}</p></article><article className="panel"><p className="eyebrow">{t('Successful runs')}</p><strong className="detail-value">{getLaunches(solution)}</strong><p className="detail-note">{t(solution.usageSource === 'tracked' ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
+    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Training')}</p><strong className="detail-value">{t(solution.training)}</strong><p className="detail-note">{t('Training status')}</p></article><article className="panel"><p className="eyebrow">{t('Successful runs')}</p><strong className="detail-value">{getLaunches(solution)}</strong><p className="detail-note">{t(solution.usageSource === 'tracked' ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
   </section>
 </>; }
 function DetailBlock({ label, text }) { return <section className="detail-block"><p className="eyebrow">{label}</p><p>{text}</p></section>; }
@@ -407,7 +409,7 @@ function SolutionEditor({ solution, onClose, onSave }) {
       <label>{t('Solution name')}<input autoFocus value={draft.name} onChange={update('name')} placeholder={t('e.g. Supplier Catalog Matcher')} required /></label>
       <label>{t('Department')}<input value={draft.department} onChange={update('department')} placeholder={t('e.g. Procurement')} required /></label>
       <div className="form-grid"><label>{t('Stage')}<select value={canonicalLabel(draft.stage) || draft.stage} onChange={update('stage')}><option value="Building">{t('Building')}</option><option value="Testing">{t('Testing')}</option><option value="Live">{t('Live')}</option><option value="Paused">{t('Paused')}</option></select></label><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label></div>
-      <div className="form-grid"><label>{t('Validated value')}<input value={draft.value} onChange={update('value')} placeholder={t('e.g. 12 hrs')} /></label><label>{t('Successful runs')}<input type="number" min="0" step="1" value={draft.launches ?? 0} onChange={update('launches')} placeholder="0" /></label></div>
+      <div className="form-grid"><label>{t('Training')}<select value={draft.training || 'Soon'} onChange={update('training')}><option value="Completed">{t('Completed')}</option><option value="In process">{t('In process')}</option><option value="Soon">{t('Soon')}</option></select></label><label>{t('Successful runs')}<input type="number" min="0" step="1" value={draft.launches ?? 0} onChange={update('launches')} placeholder="0" /></label></div>
       <div className="form-grid"><label>{t('Colour')}<select value={draft.accent} onChange={update('accent')}><option value="teal">{t('Teal')}</option><option value="blue">{t('Blue')}</option><option value="amber">{t('Amber')}</option><option value="violet">{t('Violet')}</option></select></label><label>{t('Product owner')}<input value={draft.owner || ''} onChange={update('owner')} placeholder={t('e.g. Eldar Pine')} /></label></div>
       <label>{t('Purpose')}<textarea value={draft.purpose || ''} onChange={update('purpose')} rows="3" placeholder={t('What does this solution help the department do?')} /></label>
       <label>{t('Business case')}<textarea value={draft.businessCase || ''} onChange={update('businessCase')} rows="3" placeholder={t('What time, cost, quality, or risk problem does it address?')} /></label>

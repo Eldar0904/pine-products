@@ -26,12 +26,6 @@ const seedSolutions = [
   { id: 'edumax-administration', name: 'EduMax Administration', department: 'Academic', stage: 'Live', health: 'Healthy', value: '—', detail: 'Outcome baseline due in August', accent: 'violet', owner: 'Eldar Pine', purpose: 'Support academic administration workflows in one focused workspace.', businessCase: 'Reduce fragmented manual coordination for the Academic team.', nextStep: 'Record the manual baseline and schedule an outcome review.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-23', blocker: '', aiOpportunity: 'No AI scope planned until the baseline is measured.' }
 ];
 
-const workItems = [
-  { title: 'Validate matching rules with Procurement', solution: 'Catalog Matcher', status: 'In progress', due: '02 Aug', tone: 'amber' },
-  { title: 'Record manual baseline for EduMax', solution: 'EduMax Administration', status: 'Planned', due: '05 Aug', tone: 'slate' },
-  { title: 'Review Legal template update', solution: 'Agreement Generator', status: 'Needs review', due: 'Today', tone: 'teal' }
-];
-
 const seedSubscriptions = [
   { id: 'vercel', provider: 'Vercel', category: 'Hosting', renewal: '2026-08-15', owner: 'Eldar Pine', status: 'Review due', solutions: 'PINE Workflows, PINE Orbit', detail: 'Production hosting and deployment.' },
   { id: 'supabase', provider: 'Supabase', category: 'Database & Auth', renewal: 'Free plan', owner: 'Eldar Pine', status: 'Healthy', solutions: 'PINE Product Hub', detail: 'PostgreSQL database and future authentication.' },
@@ -294,47 +288,15 @@ function Metric({ label, value, sub, icon, tone }) { return <article className={
 
 function ExecutiveContent({ solutions, onEdit, onOpen }) {
   const { t } = useLang();
-  const byDepartment = solutions.reduce((groups, solution) => { groups[solution.department] = groups[solution.department] || []; groups[solution.department].push(solution); return groups; }, {});
-  const attention = solutions.filter((solution) => solution.health !== 'Healthy');
-  const decisions = attention.filter((solution) => solution.blocker || solution.stage !== 'Live');
-  const developmentStages = ['Discovery', 'Building', 'Testing'];
-  const comingSoon = solutions
-    .filter((solution) => developmentStages.includes(resolveRoadmapStage(solution.roadmapStage, solution.stage)))
-    .sort((a, b) => developmentStages.indexOf(resolveRoadmapStage(a.roadmapStage, a.stage)) - developmentStages.indexOf(resolveRoadmapStage(b.roadmapStage, b.stage)));
-  const attentionTitle = attention.length
-    ? formatCountLabel(attention.length, '{count} decision need attention.', '{count} decisions need attention.', t)
-    : t('Portfolio is on track.');
-  return <>
-  <section className="section-grid exec-grid">
-    <article className="panel value-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Department impact')}</p><h2>{t('Training by department')}</h2></div><span className="panel-note">{t('Completion status')}</span></div>
-      <div className="impact-list">{Object.entries(byDepartment).map(([department, items]) => { const completed = items.filter((item) => item.training === 'Completed').length; const width = Math.max(10, Math.round((completed / items.length) * 100)); return <Impact key={department} department={t(department)} value={`${completed}/${items.length}`} width={width} note={t('training completed')}/>; })}</div>
-    </article>
-    <article className="panel dark-panel"><p className="eyebrow">{t('Portfolio signal')}</p><h2>{attentionTitle}</h2><p>{t(attention.length ? 'Focus the next review on products with an unresolved health signal or delivery decision.' : 'All products currently have a healthy operating signal.')}</p><div className="dark-stat"><strong>{solutions.length}</strong><span>{t('products in the portfolio')}</span></div></article>
-  </section>
-  <section className="section-grid exec-lower-grid">
-    <article className="panel decision-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Leadership attention')}</p><h2>{t('Decisions & risks')}</h2></div><span className="decision-count">{decisions.length}</span></div>{decisions.length ? <div className="decision-list">{decisions.map((solution) => <div className="decision-item" key={solution.id}><div><strong>{t(solution.name)}</strong><span>{t(solution.blocker || solution.nextStep)}</span></div><b>{t(solution.health)}</b></div>)}</div> : <p className="empty-state">{t('No open product decisions are recorded.')}</p>}</article>
-    <article className="panel roadmap-summary"><div className="panel-heading"><div><p className="eyebrow">{t('Forward view')}</p><h2>{t('Coming soon')}</h2></div><Sparkles size={18}/></div>{comingSoon.length ? <div className="milestone-list">{comingSoon.map((solution) => <div className="milestone-item" key={solution.id}><div><strong>{t(solution.name)}</strong><small>{t(solution.nextStep) || t('Define the next step.')}</small></div></div>)}</div> : <p className="empty-state">{t('No solutions are currently in development.')}</p>}</article>
-  </section>
-  <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Current product health')}</h2></div><button className="text-button">{t('All solutions')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>
-</>; }
+  return <section className="panel table-panel executive-solutions"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Current product health')}</h2></div></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>;
+}
 
 function AdminContent({ section, solutions, subscriptions, technicalProfiles, onEdit, onCreate, onOpen, onEditSubscription, onCreateSubscription, onEditProfile }) {
   const { t } = useLang();
   if (section === 'Subscriptions') return <SubscriptionsRegister subscriptions={subscriptions} onEdit={onEditSubscription} onCreate={onCreateSubscription}/>;
   if (section === 'Operations') return <OperationsWorkspace solutions={solutions} profiles={technicalProfiles} onEdit={onEditProfile}/>;
-  return <>
-  <section className="section-grid admin-grid">
-    <article className="panel work-panel"><div className="panel-heading"><div><p className="eyebrow">{t('This week')}</p><h2>{t('Priority work')}</h2></div><button className="icon-button" onClick={onCreate} aria-label={t('Add solution')}><Plus size={18}/></button></div>
-      <div className="work-list">{workItems.map(item => <div className="work-item" key={item.title}><span className={`status-dot ${item.tone}`}></span><div><strong>{t(item.title)}</strong><span>{t(item.solution)} · {t('Due {date}').replace('{date}', t(item.due))}</span></div><em>{t(item.status)}</em></div>)}</div>
-    </article>
-    <article className="panel operations-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Operations')}</p><h2>{t('System pulse')}</h2></div><Activity size={19}/></div>
-      <div className="pulse-row"><span>{t('Live tool health')}</span><strong>{t('Healthy')}</strong></div><div className="pulse-row"><span>{t('Usage events recorded')}</span><strong>{totalLaunches(solutions)}</strong></div><div className="pulse-row"><span>{t('Open operational risks')}</span><strong className={technicalProfiles.some((profile) => profile.risk && profile.risk !== 'No current risk') ? 'warning' : ''}>{technicalProfiles.filter((profile) => profile.risk && profile.risk !== 'No current risk').length}</strong></div><button className="text-button">{t('Open operations')} <ArrowRight size={15}/></button>
-    </article>
-  </section>
-  <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t(section === 'Overview' ? 'Solution portfolio' : section)}</p><h2>{t(section === 'Overview' ? 'Products at a glance' : `${section} overview`)}</h2></div><button className="text-button" onClick={onCreate}>{t('Add solution')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>
-</>; }
-
-function Impact({ department, value, width, note }) { return <div className="impact-row"><div><strong>{department}</strong><span>{note}</span></div><div className="impact-bar"><i style={{width:`${width}%`}}></i></div><b>{value}</b></div>; }
+  return <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Products at a glance')}</h2></div><button className="text-button" onClick={onCreate}>{t('Add solution')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>;
+}
 
 function SolutionTable({ solutions, onEdit, onOpen }) {
   const { t } = useLang();

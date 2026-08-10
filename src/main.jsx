@@ -3,11 +3,11 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity, ArrowRight, Bell, Boxes, ChevronDown, CircleAlert, Clock3,
   FileText, LayoutDashboard, Menu, Plus, Server, ShieldCheck,
-  Pencil, Sparkles, Users, X
+  Pencil, Sparkles, Trash2, Users, X
 } from 'lucide-react';
 import './styles.css';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
-import { loadSolutions, saveRemoteSolution } from './lib/hub-data';
+import { deleteRemoteSolution, loadSolutions, saveRemoteSolution } from './lib/hub-data';
 import {
   LanguageContext,
   ROADMAP_STAGES,
@@ -169,6 +169,16 @@ function App() {
       setEditingSolution(null);
     } catch (error) { setSaveError(error.message || 'The Solution could not be saved.'); }
   };
+  const deleteSolution = async (solution) => {
+    setSaveError('');
+    try {
+      if (!developmentMode && isSupabaseConfigured) await deleteRemoteSolution(solution.id);
+      setSolutions(current => current.filter(item => item.id !== solution.id));
+      setTechnicalProfiles(current => current.filter(profile => profile.solutionId !== solution.id));
+      setSelectedSolution(current => current?.id === solution.id ? null : current);
+      setEditingSolution(null);
+    } catch (error) { setSaveError(error.message || 'The Solution could not be deleted.'); }
+  };
   const createSolution = () => setEditingSolution({
     id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
   });
@@ -259,7 +269,7 @@ function App() {
           </>}
         </div>
       </main>
-      {editingSolution && <SolutionEditor solution={editingSolution} onClose={() => setEditingSolution(null)} onSave={saveSolution}/>}
+      {editingSolution && <SolutionEditor solution={editingSolution} onClose={() => setEditingSolution(null)} onSave={saveSolution} onDelete={deleteSolution}/>}
       {editingSubscription && <SubscriptionEditor subscription={editingSubscription} onClose={() => setEditingSubscription(null)} onSave={saveSubscription}/>}
       {editingProfile && <TechnicalProfileEditor profile={editingProfile} solutions={solutions} onClose={() => setEditingProfile(null)} onSave={saveProfile}/>}
     </div>
@@ -365,7 +375,7 @@ function SolutionDetail({ solution, onBack, onEdit }) {
 </>; }
 function DetailBlock({ label, text }) { return <section className="detail-block"><p className="eyebrow">{label}</p><p>{text}</p></section>; }
 
-function SolutionEditor({ solution, onClose, onSave }) {
+function SolutionEditor({ solution, onClose, onSave, onDelete }) {
   const { t } = useLang();
   const [draft, setDraft] = useState(solution);
   const update = (field) => (event) => setDraft(current => ({ ...current, [field]: event.target.value }));
@@ -383,6 +393,9 @@ function SolutionEditor({ solution, onClose, onSave }) {
       usageSource: draft.usageSource === 'tracked' ? 'tracked' : 'manual',
     });
   };
+  const remove = () => {
+    if (window.confirm(t('Delete this solution permanently?'))) onDelete(solution);
+  };
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
     <div className="editor-heading"><div><p className="eyebrow">{t('Admin only')}</p><h2 id="editor-title">{t(solution.name ? 'Edit solution' : 'Add solution')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close editor')}><X size={18}/></button></div>
     <form onSubmit={submit}>
@@ -398,7 +411,7 @@ function SolutionEditor({ solution, onClose, onSave }) {
       <div className="form-grid"><label>{t('Roadmap stage')}<select value={canonicalLabel(draft.roadmapStage) || draft.roadmapStage || 'Discovery'} onChange={update('roadmapStage')}><option value="Discovery">{t('Discovery')}</option><option value="Building">{t('Building')}</option><option value="Testing">{t('Testing')}</option><option value="Live">{t('Live')}</option><option value="Measuring outcome">{t('Measuring outcome')}</option></select></label><label>{t('Target date')}<input type="date" value={draft.targetDate || ''} onChange={update('targetDate')}/></label></div>
       <label>{t('Blocker or decision needed')}<textarea value={draft.blocker || ''} onChange={update('blocker')} rows="2" placeholder={t('Leave empty if there is no current blocker.')}/></label>
       <label>{t('Future AI opportunity')}<textarea value={draft.aiOpportunity || ''} onChange={update('aiOpportunity')} rows="2" placeholder={t('Describe a realistic future AI assist, or explain why none is planned.')}/></label>
-      <div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save solution')}</button></div>
+      <div className="editor-actions">{solution.name && <button type="button" className="danger-button" onClick={remove}><Trash2 size={16}/>{t('Delete solution')}</button>}<button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save solution')}</button></div>
     </form>
   </section></div>;
 }

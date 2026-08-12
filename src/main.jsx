@@ -17,7 +17,7 @@ import {
   resolveRoadmapStage,
   useLang,
 } from './lib/i18n';
-import { applyRemoteUsage, getLaunches, loadRemoteUsage, totalLaunches } from './lib/usage';
+import { applyRemoteUsage, formatOutputs, getOutputMetrics, loadRemoteUsage, totalOutputs } from './lib/usage';
 
 const seedSolutions = [
   { id: 'offer-generator', name: 'Commercial Offer Generator', department: 'Procurement', stage: 'Live', health: 'Healthy', value: '28 hrs', detail: '86 completed offers this month', accent: 'teal', owner: 'Eldar Pine', purpose: 'Generate consistent commercial offers from approved procurement data.', businessCase: 'Reduce repeated formatting work and improve offer turnaround time.', nextStep: 'Validate the monthly time-saving baseline with Procurement.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-09', blocker: '', aiOpportunity: 'Draft offer summary from structured data after human review.' },
@@ -52,8 +52,12 @@ const normaliseSolutions = (items) => items.map((item, index) => {
       ? merged.training
       : merged.stage === 'Live' ? 'Completed' : merged.stage === 'Building' ? 'In process' : 'Soon',
     roadmapStage: resolveRoadmapStage(merged.roadmapStage, merged.stage),
-    launches: getLaunches(merged),
-    usageSource: merged.usageSource === 'tracked' ? 'tracked' : 'manual',
+    outputsTotal: getOutputMetrics(merged).total,
+    outputsThisMonth: getOutputMetrics(merged).thisMonth,
+    outputUnit: getOutputMetrics(merged).unit,
+    outputShortUnit: getOutputMetrics(merged).shortUnit,
+    // Remote output counts are refreshed on every page load; never present local cache as live data.
+    usageSource: 'manual',
   };
 });
 const normaliseSubscriptions = (items) => items.map((item, index) => ({
@@ -180,10 +184,10 @@ function App() {
     } catch (error) { setSaveError(error.message || 'The Solution could not be deleted.'); }
   };
   const createSolution = () => setEditingSolution({
-    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
+    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', outputsTotal: 0, outputsThisMonth: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage: 'Discovery', targetDate: '', blocker: '', aiOpportunity: ''
   });
   const createRoadmapCard = (roadmapStage) => setEditingSolution({
-    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', launches: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage, targetDate: '', blocker: '', aiOpportunity: ''
+    id: crypto.randomUUID(), name: '', department: 'Procurement', stage: 'Building', health: 'Attention', training: 'Soon', outputsTotal: 0, outputsThisMonth: 0, usageSource: 'manual', detail: 'Describe the current status', accent: 'teal', owner: 'Eldar Pine', purpose: '', businessCase: '', nextStep: '', roadmapStage, targetDate: '', blocker: '', aiOpportunity: ''
   });
   const moveRoadmapCard = (solution, roadmapStage) => {
     if (resolveRoadmapStage(solution.roadmapStage, solution.stage) === roadmapStage) return;
@@ -255,7 +259,7 @@ function App() {
 
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="metrics-grid">
             <Metric label={t(isExecutive ? 'Training completed' : 'Active solutions')} value={isExecutive ? `${solutions.filter((item) => item.training === 'Completed').length} / ${solutions.length}` : String(solutions.length)} sub={t(isExecutive ? 'products with completed training' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
-            <Metric label={t(isExecutive ? 'Solutions healthy' : 'Successful runs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : String(totalLaunches(solutions))} sub={t(isExecutive ? 'portfolio health signal' : (solutions.some((item) => item.usageSource === 'tracked') ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready'))} icon={<ShieldCheck size={19}/>} />
+            <Metric label={t(isExecutive ? 'Solutions healthy' : 'Completed outputs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : String(totalOutputs(solutions))} sub={t(isExecutive ? 'portfolio health signal' : solutions.some((item) => item.usageSource === 'tracked') ? 'Combined total produced by connected tools' : 'Usage tracking not connected yet')} icon={<ShieldCheck size={19}/>} />
             <Metric label={t(isExecutive ? 'Decision needed' : 'Needs attention')} value={isExecutive ? solutions.filter((item) => item.health !== 'Healthy').length : solutions.filter((item) => item.health !== 'Healthy').length} sub={t(isExecutive ? 'products require a decision or baseline' : 'Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
             <Metric label={t(isExecutive ? 'Live products' : 'Renewal watch')} value={isExecutive ? solutions.filter((item) => item.stage === 'Live').length : '1'} sub={t(isExecutive ? 'currently serving departments' : 'Operational review due in 16 days')} icon={<Server size={19}/>} />
           </section>}
@@ -310,7 +314,7 @@ function AdminContent({ section, solutions, subscriptions, technicalProfiles, on
 
 function SolutionTable({ solutions, onEdit, onOpen }) {
   const { t } = useLang();
-  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Training')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span className="solution-meta" data-label={t('Stage')}><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`solution-meta health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`} data-label={t('Health')}><i></i>{t(s.health)}</span><strong className="solution-meta" data-label={t('Training')}>{t(s.training)}</strong><button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button></div>)}</div>;
+  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Training')}</span><span>{t('Outputs')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span className="solution-meta" data-label={t('Stage')}><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`solution-meta health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`} data-label={t('Health')}><i></i>{t(s.health)}</span><strong className="solution-meta" data-label={t('Training')}>{t(s.training)}</strong><strong className="solution-meta output-count" data-label={t('Outputs')}>{formatOutputs(s)}</strong><button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button></div>)}</div>;
 }
 
 function SubscriptionsRegister({ subscriptions, onEdit, onCreate }) {
@@ -362,6 +366,7 @@ function RoadmapBoard({ solutions, onOpen, onEdit, onCreate, onMove }) {
 
 function SolutionDetail({ solution, onBack, onEdit }) {
   const { t } = useLang();
+  const output = getOutputMetrics(solution);
   return <>
   <section className="detail-hero">
     <button className="back-button" onClick={onBack}>{t('← Back to solutions')}</button>
@@ -370,7 +375,7 @@ function SolutionDetail({ solution, onBack, onEdit }) {
   </section>
   <section className="detail-grid">
     <article className="panel detail-main"><DetailBlock label={t('Purpose')} text={t(solution.purpose) || t('Add the purpose this product serves.')}/><DetailBlock label={t('Business case')} text={t(solution.businessCase) || t('Add the measurable business problem or value hypothesis.')}/><DetailBlock label={t('Current status')} text={t(solution.detail)}/></article>
-    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Training')}</p><strong className="detail-value">{t(solution.training)}</strong><p className="detail-note">{t('Training status')}</p></article><article className="panel"><p className="eyebrow">{t('Successful runs')}</p><strong className="detail-value">{getLaunches(solution)}</strong><p className="detail-note">{t(solution.usageSource === 'tracked' ? 'From connected usage tracking' : 'Editable now · wire usage feed when ready')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
+    <aside className="detail-aside"><article className="panel"><p className="eyebrow">{t('Training')}</p><strong className="detail-value">{t(solution.training)}</strong><p className="detail-note">{t('Training status')}</p></article><article className="panel output-detail"><p className="eyebrow">{t('Completed outputs')}</p><strong className="detail-value">{solution.usageSource === 'tracked' ? output.total : '—'}</strong><p className="detail-note">{t(output.unit)}</p><div className="output-month"><span>{t('This month')}</span><strong>{solution.usageSource === 'tracked' ? output.thisMonth : '—'}</strong></div><p className="detail-note">{t(solution.usageSource === 'tracked' ? 'From connected usage tracking' : 'Usage tracking not connected yet')}</p></article><article className="panel"><p className="eyebrow">{t('Next step')}</p><h2>{t(solution.nextStep) || t('Define the next milestone.')}</h2><p className="detail-note">{t('Update this after each review or delivery milestone.')}</p></article><article className="panel detail-facts"><p className="eyebrow">{t('Product facts')}</p><div><span>{t('Department')}</span><strong>{t(solution.department)}</strong></div><div><span>{t('Product owner')}</span><strong>{solution.owner || t('Not assigned')}</strong></div><div><span>{t('Health')}</span><strong>{t(solution.health)}</strong></div></article></aside>
   </section>
 </>; }
 function DetailBlock({ label, text }) { return <section className="detail-block"><p className="eyebrow">{label}</p><p>{text}</p></section>; }
@@ -389,7 +394,8 @@ function SolutionEditor({ solution, onClose, onSave, onDelete }) {
       stage: canonicalLabel(draft.stage) || draft.stage,
       health: canonicalLabel(draft.health) || draft.health,
       roadmapStage: resolveRoadmapStage(draft.roadmapStage, draft.stage),
-      launches: getLaunches({ launches: draft.launches }),
+      outputsTotal: getOutputMetrics(draft).total,
+      outputsThisMonth: getOutputMetrics(draft).thisMonth,
       usageSource: draft.usageSource === 'tracked' ? 'tracked' : 'manual',
     });
   };
@@ -402,7 +408,7 @@ function SolutionEditor({ solution, onClose, onSave, onDelete }) {
       <label>{t('Solution name')}<input autoFocus value={draft.name} onChange={update('name')} placeholder={t('e.g. Supplier Catalog Matcher')} required /></label>
       <label>{t('Department')}<input value={draft.department} onChange={update('department')} placeholder={t('e.g. Procurement')} required /></label>
       <div className="form-grid"><label>{t('Stage')}<select value={canonicalLabel(draft.stage) || draft.stage} onChange={update('stage')}><option value="Building">{t('Building')}</option><option value="Testing">{t('Testing')}</option><option value="Live">{t('Live')}</option><option value="Paused">{t('Paused')}</option></select></label><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label></div>
-      <div className="form-grid"><label>{t('Training')}<select value={draft.training || 'Soon'} onChange={update('training')}><option value="Completed">{t('Completed')}</option><option value="In process">{t('In process')}</option><option value="Soon">{t('Soon')}</option></select></label><label>{t('Successful runs')}<input type="number" min="0" step="1" value={draft.launches ?? 0} onChange={update('launches')} placeholder="0" /></label></div>
+      <label>{t('Training')}<select value={draft.training || 'Soon'} onChange={update('training')}><option value="Completed">{t('Completed')}</option><option value="In process">{t('In process')}</option><option value="Soon">{t('Soon')}</option></select></label>
       <div className="form-grid"><label>{t('Colour')}<select value={draft.accent} onChange={update('accent')}><option value="teal">{t('Teal')}</option><option value="blue">{t('Blue')}</option><option value="amber">{t('Amber')}</option><option value="violet">{t('Violet')}</option></select></label><label>{t('Product owner')}<input value={draft.owner || ''} onChange={update('owner')} placeholder={t('e.g. Eldar Pine')} /></label></div>
       <label>{t('Purpose')}<textarea value={draft.purpose || ''} onChange={update('purpose')} rows="3" placeholder={t('What does this solution help the department do?')} /></label>
       <label>{t('Business case')}<textarea value={draft.businessCase || ''} onChange={update('businessCase')} rows="3" placeholder={t('What time, cost, quality, or risk problem does it address?')} /></label>

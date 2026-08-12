@@ -20,3 +20,15 @@ The current interface stores Solution edits in the browser until Supabase is con
 5. Create the first user, then add their Auth user UUID to `public.user_roles` as `admin` using the commented command at the bottom of the migration.
 
 Never put a service-role key in the browser app or commit real `.env` values.
+
+## Goszakup output tracking
+
+Product Hub reads successful commercial-proposal, technical-specification, and
+Goszakup parser output counts through a server-to-server integration. Configure:
+
+- `PINEGROUP_GZ_API_URL` — the public PineGroup GZ service URL
+- `PRODUCT_HUB_USAGE_TOKEN` — a long random secret shared with PineGroup GZ
+
+The token stays server-side; the browser receives only aggregate lifetime and
+current-month output counts. Product Hub shows no demo fallback when the feed is
+unavailable.

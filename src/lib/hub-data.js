@@ -61,3 +61,8 @@ export async function saveRemoteSolution(solution) {
   if (error) throw error;
   return solution;
 }
+
+export async function deleteRemoteSolution(id) {
+  const { error } = await supabase.from('solutions').delete().eq('id', id);
+  if (error) throw error;
+}

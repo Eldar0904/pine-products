@@ -52,3 +52,12 @@ main, .page-content, .table-panel, .solution-table { min-width:0; }
   .table-row { grid-template-columns:1fr; }
   .solution-name { grid-column:1; }
 }
+
+/* Output delivery metrics */
+@media (min-width: 1201px) {
+  .table-head,
+  .table-row { grid-template-columns:minmax(220px,2.3fr) .65fr .8fr .65fr .7fr 28px; }
+}
+.output-count { color:#173f39; white-space:nowrap; }
+.output-month { display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e9ede8; margin-top:14px; padding-top:12px; color:#75837b; font-size:10px; }
+.output-month strong { color:#173f39; font-size:17px; }

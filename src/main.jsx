@@ -90,7 +90,6 @@ const formatCurrentDate = (date, language) => {
 function App() {
   const [now, setNow] = useState(() => new Date());
   const [language, setLanguage] = useState(() => localStorage.getItem('pine-product-hub-language') || 'ru');
-  const [view, setView] = useState(() => localStorage.getItem('pine-product-hub-view') || 'executive');
   const [section, setSection] = useState('Overview');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auth, setAuth] = useState({ state: developmentMode || !isSupabaseConfigured ? 'demo' : 'loading', role: 'admin', email: '' });
@@ -117,16 +116,12 @@ function App() {
   });
   const [editingProfile, setEditingProfile] = useState(null);
   const t = useMemo(() => createTranslator(language), [language]);
-  const isExecutive = view === 'executive' || auth.role === 'executive';
-  const nav = isExecutive
-    ? ['Executive overview']
-    : ['Overview', 'Roadmap', 'Operations', 'Subscriptions'];
-  const activeName = section === 'Executive overview' ? 'Overview' : section;
+  const isAdmin = auth.role === 'admin';
+  const nav = ['Overview', 'Roadmap', 'Operations', 'Subscriptions'];
 
   useEffect(() => localStorage.setItem('pine-product-hub-solutions', JSON.stringify(solutions)), [solutions]);
   useEffect(() => localStorage.setItem('pine-product-hub-subscriptions', JSON.stringify(subscriptions)), [subscriptions]);
   useEffect(() => localStorage.setItem('pine-product-hub-technical-profiles', JSON.stringify(technicalProfiles)), [technicalProfiles]);
-  useEffect(() => localStorage.setItem('pine-product-hub-view', view), [view]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -153,8 +148,7 @@ function App() {
       if (!data?.length) { setAuth({ state: 'waiting', role: '', email: session.user.email || '' }); return; }
       const role = data[0].role;
       setAuth({ state: 'ready', role, email: session.user.email || '' });
-      setView(role === 'executive' ? 'executive' : 'admin');
-      setSection(role === 'executive' ? 'Executive overview' : 'Overview');
+      setSection('Overview');
       try { setSolutions(normaliseSolutions(await loadSolutions())); } catch (loadError) { setSaveError(loadError.message); }
     };
     supabase.auth.getSession().then(({ data }) => resolveSession(data.session));
@@ -223,14 +217,14 @@ function App() {
           <button className="icon-button mobile-only" onClick={() => setMobileOpen(false)} aria-label={t('Close navigation')}><X size={18}/></button>
         </div>
         <nav>
-          <p className="nav-label">{t(isExecutive ? 'Portfolio' : 'Workspace')}</p>
-          {nav.map(item => <button key={item} onClick={() => { setSelectedSolution(null); setSection(item); setMobileOpen(false); }} className={activeName === (item === 'Executive overview' ? 'Overview' : item) ? 'nav-item active' : 'nav-item'}>
+          <p className="nav-label">{t('Workspace')}</p>
+          {nav.map(item => <button key={item} onClick={() => { setSelectedSolution(null); setSection(item); setMobileOpen(false); }} className={section === item ? 'nav-item active' : 'nav-item'}>
             {item.includes('overview') || item === 'Overview' ? <LayoutDashboard size={18}/> : item === 'Solutions' ? <Boxes size={18}/> : item === 'Roadmap' ? <Sparkles size={18}/> : item === 'Operations' ? <Activity size={18}/> : item === 'Subscriptions' ? <Server size={18}/> : item === 'Department impact' ? <Users size={18}/> : <CircleAlert size={18}/>}<span>{t(item)}</span>
           </button>)}
         </nav>
         <div className="sidebar-footer">
           <div className="user-avatar">EP</div>
-          <div><strong>Eldar Pine</strong><span>{t(isExecutive ? 'Executive access' : 'Administrator')}</span></div>
+          <div><strong>Eldar Pine</strong><span>{t(isAdmin ? 'Administrator' : 'Workspace access')}</span></div>
           <ChevronDown size={16}/>
         </div>
       </aside>
@@ -239,37 +233,34 @@ function App() {
       <main>
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label={t('Open navigation')}><Menu size={20}/></button>
-          <div className="breadcrumb"><span>PINE / PRODUCT HUB</span><b>/</b><strong>{selectedSolution ? selectedSolution.name.toUpperCase() : t(isExecutive ? 'EXECUTIVE VIEW' : 'WORKING VIEW')}</strong></div>
+          <div className="breadcrumb"><span>PINE / PRODUCT HUB</span><b>/</b><strong>{selectedSolution ? selectedSolution.name.toUpperCase() : t('WORKSPACE')}</strong></div>
           <div className="topbar-actions">
-            {auth.role === 'admin' && <button className="view-switch" onClick={() => { setView(isExecutive ? 'admin' : 'executive'); setSection(isExecutive ? 'Overview' : 'Executive overview'); }}><span className="switch-dot"></span>{t(isExecutive ? 'Switch to Working View' : 'Switch to Executive View')}</button>}
             <button className="language-switch" onClick={() => setLanguage((current) => current === 'ru' ? 'en' : 'ru')} aria-label={language === 'ru' ? 'Switch to English' : 'Переключить на русский'}>{language === 'ru' ? 'EN' : 'RU'}</button><button className="icon-button"><Bell size={18}/><i></i></button>
           </div>
         </header>
 
         <div className="page-content">
-          {selectedSolution ? <SolutionDetail solution={selectedSolution} onBack={() => setSelectedSolution(null)} onEdit={setEditingSolution} /> : <>
+          {selectedSolution ? <SolutionDetail solution={selectedSolution} onBack={() => setSelectedSolution(null)} onEdit={isAdmin ? setEditingSolution : undefined} /> : <>
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="page-intro">
             <div>
-              <p className="eyebrow">{isExecutive ? t('Portfolio health · July 2026') : formatCurrentDate(now, language)}</p>
-              <h1>{t(isExecutive ? 'A clear view of product value.' : greetingForHour(now.getHours()))}</h1>
-              <p>{t(isExecutive ? 'A concise view of the internal solutions serving PINE teams.' : 'Your automation portfolio is stable. Two items need attention this week.')}</p>
+              <p className="eyebrow">{formatCurrentDate(now, language)}</p>
+              <h1>{t(greetingForHour(now.getHours()))}</h1>
+              <p>{t('Your automation portfolio is stable. Two items need attention this week.')}</p>
             </div>
-            {!isExecutive && <button className="primary-button" onClick={createSolution}><Plus size={18}/> {t('Add solution')}</button>}
+            {isAdmin && <button className="primary-button" onClick={createSolution}><Plus size={18}/> {t('Add solution')}</button>}
           </section>}
 
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="metrics-grid">
-            <Metric label={t(isExecutive ? 'Training completed' : 'Active solutions')} value={isExecutive ? `${solutions.filter((item) => item.training === 'Completed').length} / ${solutions.length}` : String(solutions.length)} sub={t(isExecutive ? 'products with completed training' : '2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
-            <Metric label={t(isExecutive ? 'Solutions healthy' : 'Completed outputs')} value={isExecutive ? (solutions.filter((item) => item.health === 'Healthy').length + ' / ' + solutions.length) : String(totalOutputs(solutions))} sub={t(isExecutive ? 'portfolio health signal' : solutions.some((item) => item.usageSource === 'tracked') ? 'Combined total produced by connected tools' : 'Usage tracking not connected yet')} icon={<ShieldCheck size={19}/>} />
-            <Metric label={t(isExecutive ? 'Decision needed' : 'Needs attention')} value={isExecutive ? solutions.filter((item) => item.health !== 'Healthy').length : solutions.filter((item) => item.health !== 'Healthy').length} sub={t(isExecutive ? 'products require a decision or baseline' : 'Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
-            <Metric label={t(isExecutive ? 'Live products' : 'Renewal watch')} value={isExecutive ? solutions.filter((item) => item.stage === 'Live').length : '1'} sub={t(isExecutive ? 'currently serving departments' : 'Operational review due in 16 days')} icon={<Server size={19}/>} />
+            <Metric label={t('Active solutions')} value={String(solutions.length)} sub={t('2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
+            <Metric label={t('Completed outputs')} value={String(totalOutputs(solutions))} sub={t(solutions.some((item) => item.usageSource === 'tracked') ? 'Combined total produced by connected tools' : 'Usage tracking not connected yet')} icon={<ShieldCheck size={19}/>} />
+            <Metric label={t('Needs attention')} value={solutions.filter((item) => item.health !== 'Healthy').length} sub={t('Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
+            <Metric label={t('Renewal watch')} value="1" sub={t('Operational review due in 16 days')} icon={<Server size={19}/>} />
           </section>}
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
-          {!isExecutive && section === 'Roadmap'
-            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={setEditingSolution} onCreate={createRoadmapCard} onMove={moveRoadmapCard}/>
-            : isExecutive
-              ? <ExecutiveContent solutions={solutions} onEdit={setEditingSolution} onOpen={setSelectedSolution} />
-              : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={setEditingSolution} onCreate={createSolution} onOpen={setSelectedSolution} onEditSubscription={setEditingSubscription} onCreateSubscription={createSubscription} onEditProfile={setEditingProfile}/>}
+          {section === 'Roadmap'
+            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createRoadmapCard : undefined} onMove={isAdmin ? moveRoadmapCard : undefined}/>
+            : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createSolution : undefined} onOpen={setSelectedSolution} onEditSubscription={isAdmin ? setEditingSubscription : undefined} onCreateSubscription={isAdmin ? createSubscription : undefined} onEditProfile={isAdmin ? setEditingProfile : undefined}/>}
           </>}
         </div>
       </main>
@@ -300,29 +291,24 @@ function SignInScreen() {
 
 function Metric({ label, value, sub, icon, tone }) { return <article className={`metric-card ${tone || ''}`}><div className="metric-icon">{icon}</div><p>{label}</p><strong>{value}</strong><span>{sub}</span></article>; }
 
-function ExecutiveContent({ solutions, onEdit, onOpen }) {
-  const { t } = useLang();
-  return <section className="panel table-panel executive-solutions"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Current product health')}</h2></div></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>;
-}
-
 function AdminContent({ section, solutions, subscriptions, technicalProfiles, onEdit, onCreate, onOpen, onEditSubscription, onCreateSubscription, onEditProfile }) {
   const { t } = useLang();
   if (section === 'Subscriptions') return <SubscriptionsRegister subscriptions={subscriptions} onEdit={onEditSubscription} onCreate={onCreateSubscription}/>;
   if (section === 'Operations') return <OperationsWorkspace solutions={solutions} profiles={technicalProfiles} onEdit={onEditProfile}/>;
-  return <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Products at a glance')}</h2></div><button className="text-button" onClick={onCreate}>{t('Add solution')} <ArrowRight size={15}/></button></div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>;
+  return <section className="panel table-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Solution portfolio')}</p><h2>{t('Products at a glance')}</h2></div>{onCreate && <button className="text-button" onClick={onCreate}>{t('Add solution')} <ArrowRight size={15}/></button>}</div><SolutionTable solutions={solutions} onEdit={onEdit} onOpen={onOpen}/></section>;
 }
 
 function SolutionTable({ solutions, onEdit, onOpen }) {
   const { t } = useLang();
-  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Training')}</span><span>{t('Outputs')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span className="solution-meta" data-label={t('Stage')}><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`solution-meta health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`} data-label={t('Health')}><i></i>{t(s.health)}</span><strong className="solution-meta" data-label={t('Training')}>{t(s.training)}</strong><strong className="solution-meta output-count" data-label={t('Outputs')}>{formatOutputs(s)}</strong><button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button></div>)}</div>;
+  return <div className="solution-table"><div className="table-head"><span>{t('Solution')}</span><span>{t('Stage')}</span><span>{t('Health')}</span><span>{t('Training')}</span><span>{t('Outputs')}</span><span></span></div>{solutions.map(s => <div className="table-row table-row--interactive" key={s.id || s.name} onClick={() => onOpen(s)}><div className="solution-name"><i className={s.accent}></i><div><strong>{t(s.name)}</strong><span>{t(s.department)} · {t(s.detail)}</span></div></div><span className="solution-meta" data-label={t('Stage')}><b className={`tag ${s.stage === 'Live' ? 'live' : 'building'}`}>{t(s.stage)}</b></span><span className={`solution-meta health ${s.health === 'Healthy' ? 'healthy' : 'attention'}`} data-label={t('Health')}><i></i>{t(s.health)}</span><strong className="solution-meta" data-label={t('Training')}>{t(s.training)}</strong><strong className="solution-meta output-count" data-label={t('Outputs')}>{formatOutputs(s)}</strong>{onEdit ? <button className="row-action" onClick={(event) => { event.stopPropagation(); onEdit(s); }} aria-label={`${t('Edit solution')} ${s.name}`}><Pencil size={15}/></button> : <span />}</div>)}</div>;
 }
 
 function SubscriptionsRegister({ subscriptions, onEdit, onCreate }) {
   const { t } = useLang();
   return <>
-  <section className="registry-intro"><div><p className="eyebrow">{t('Admin workspace')}</p><h1>{t('Subscriptions & hosting')}</h1><p>{t('One protected view of the services that keep PINE products running.')}</p></div><button className="primary-button" onClick={onCreate}><Plus size={17}/> {t('Add service')}</button></section>
+  <section className="registry-intro"><div><p className="eyebrow">{t('Workspace')}</p><h1>{t('Subscriptions & hosting')}</h1><p>{t('One protected view of the services that keep PINE products running.')}</p></div>{onCreate && <button className="primary-button" onClick={onCreate}><Plus size={17}/> {t('Add service')}</button>}</section>
   <section className="metrics-grid registry-metrics"><Metric label={t('Tracked services')} value={subscriptions.length} sub={t('Hosting, data and AI services')} icon={<Server size={19}/>}/><Metric label={t('Review due')} value={subscriptions.filter((item) => item.status === 'Review due').length} sub={t('Renewals or operational checks')} icon={<CircleAlert size={19}/>} tone="attention"/><Metric label={t('Products supported')} value="5" sub={t('Across the current portfolio')} icon={<Boxes size={19}/>}/><Metric label={t('Account owners')} value="1" sub={t('Ownership should always be named')} icon={<Users size={19}/>}/></section>
-  <section className="panel registry-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Service register')}</p><h2>{t('Operational dependencies')}</h2></div><button className="text-button" onClick={onCreate}>{t('Add service')} <ArrowRight size={15}/></button></div><div className="subscription-table"><div className="subscription-head"><span>{t('Provider')}</span><span>{t('Category')}</span><span>{t('Renewal / billing')}</span><span>{t('Used by')}</span><span>{t('Owner')}</span><span></span></div>{subscriptions.map((item) => <div className="subscription-row" key={item.id}><div><strong>{item.provider}</strong><span>{t(item.detail) || t('No operational note yet')}</span></div><span>{t(item.category)}</span><span><b className={item.status === 'Review due' ? 'review-text' : ''}>{t(item.renewal) || t('Not set')}</b><small>{t(item.status)}</small></span><span>{item.solutions || t('Not linked yet')}</span><span>{item.owner || t('Not assigned')}</span><button className="row-action" onClick={() => onEdit(item)} aria-label={`${t('Edit service')} ${item.provider}`}><Pencil size={15}/></button></div>)}</div></section>
+  <section className="panel registry-panel"><div className="panel-heading"><div><p className="eyebrow">{t('Service register')}</p><h2>{t('Operational dependencies')}</h2></div>{onCreate && <button className="text-button" onClick={onCreate}>{t('Add service')} <ArrowRight size={15}/></button>}</div><div className="subscription-table"><div className="subscription-head"><span>{t('Provider')}</span><span>{t('Category')}</span><span>{t('Renewal / billing')}</span><span>{t('Used by')}</span><span>{t('Owner')}</span><span></span></div>{subscriptions.map((item) => <div className="subscription-row" key={item.id}><div><strong>{item.provider}</strong><span>{t(item.detail) || t('No operational note yet')}</span></div><span>{t(item.category)}</span><span><b className={item.status === 'Review due' ? 'review-text' : ''}>{t(item.renewal) || t('Not set')}</b><small>{t(item.status)}</small></span><span>{item.solutions || t('Not linked yet')}</span><span>{item.owner || t('Not assigned')}</span>{onEdit ? <button className="row-action" onClick={() => onEdit(item)} aria-label={`${t('Edit service')} ${item.provider}`}><Pencil size={15}/></button> : <span />}</div>)}</div></section>
 </>; }
 
 function SubscriptionEditor({ subscription, onClose, onSave }) {
@@ -340,7 +326,7 @@ function OperationsWorkspace({ solutions, profiles, onEdit }) {
   const risks = profiles.filter((profile) => profile.risk && profile.risk !== 'No current risk').length;
   return <><section className="registry-intro"><div><p className="eyebrow">{t('Admin workspace')}</p><h1>{t('Operations')}</h1><p>{t("Keep every product's technical home, support ownership, and risks visible.")}</p></div></section>
   <section className="metrics-grid registry-metrics"><Metric label={t('Technical profiles')} value={profiles.length} sub={t('One profile for each solution')} icon={<Server size={19}/>}/><Metric label={t('Healthy products')} value={healthy} sub={t('No operational attention flagged')} icon={<Activity size={19}/>}/><Metric label={t('Needs attention')} value={needsAttention} sub={t('Review risk or ownership')} icon={<CircleAlert size={19}/>} tone="attention"/><Metric label={t('Open risks')} value={risks} sub={t('Known dependencies to manage')} icon={<CircleAlert size={19}/>} tone={risks ? 'attention' : ''}/></section>
-  <section className="operations-grid">{profiles.map((profile) => { const solution = solutionById.get(profile.solutionId); return <article className="operation-card" key={profile.id}><div className="operation-card-head"><div><p className="eyebrow">{t(solution?.department || 'Unlinked solution')}</p><h2>{solution ? t(solution.name) : t('Solution not found')}</h2></div><button className="row-action" onClick={() => onEdit(profile)} aria-label={`${t('Technical profile')} ${solution?.name || ''}`}><Pencil size={15}/></button></div><div className="operation-meta"><span>{t('Hosting')}</span><strong>{profile.hosting || t('Not recorded')}</strong><span>{t('Repository')}</span><strong>{t(profile.repository) || t('Not linked')}</strong><span>{t('Database')}</span><strong>{t(profile.database) || t('Not recorded')}</strong><span>{t('Support owner')}</span><strong>{profile.supportOwner || t('Not assigned')}</strong></div><div className="operation-footer"><span className={profile.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(profile.health)}</span><span>{t(profile.runbook) || t('No runbook linked')}</span></div>{profile.risk && profile.risk !== 'No current risk' && <p className="risk-callout"><CircleAlert size={15}/>{t(profile.risk)}</p>}</article>; })}</section></>;
+  <section className="operations-grid">{profiles.map((profile) => { const solution = solutionById.get(profile.solutionId); return <article className="operation-card" key={profile.id}><div className="operation-card-head"><div><p className="eyebrow">{t(solution?.department || 'Unlinked solution')}</p><h2>{solution ? t(solution.name) : t('Solution not found')}</h2></div>{onEdit && <button className="row-action" onClick={() => onEdit(profile)} aria-label={`${t('Technical profile')} ${solution?.name || ''}`}><Pencil size={15}/></button>}</div><div className="operation-meta"><span>{t('Hosting')}</span><strong>{profile.hosting || t('Not recorded')}</strong><span>{t('Repository')}</span><strong>{t(profile.repository) || t('Not linked')}</strong><span>{t('Database')}</span><strong>{t(profile.database) || t('Not recorded')}</strong><span>{t('Support owner')}</span><strong>{profile.supportOwner || t('Not assigned')}</strong></div><div className="operation-footer"><span className={profile.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(profile.health)}</span><span>{t(profile.runbook) || t('No runbook linked')}</span></div>{profile.risk && profile.risk !== 'No current risk' && <p className="risk-callout"><CircleAlert size={15}/>{t(profile.risk)}</p>}</article>; })}</section></>;
 }
 
 function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
@@ -361,7 +347,7 @@ function RoadmapBoard({ solutions, onOpen, onEdit, onCreate, onMove }) {
     const solution = solutions.find((item) => item.id === event.dataTransfer.getData('text/plain'));
     if (solution) onMove(solution, stage);
   };
-  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t('Drag cards between stages or add a new card directly to a stage.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => dropCard(event, stage)}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div><button className="roadmap-add" onClick={() => onCreate(stage)} aria-label={`${t('Add card')} · ${t(stage)}`}><Plus size={14}/></button></div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" draggable onDragStart={(event) => startDrag(event, solution)} onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer><button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button></article>)}</div></article>; })}</section></>;
+  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t(onEdit ? 'Drag cards between stages or add a new card directly to a stage.' : 'Product direction and delivery stages.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage} onDragOver={(event) => { if (onMove) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => onMove && dropCard(event, stage)}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div>{onCreate && <button className="roadmap-add" onClick={() => onCreate(stage)} aria-label={`${t('Add card')} · ${t(stage)}`}><Plus size={14}/></button>}</div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" draggable={Boolean(onMove)} onDragStart={(event) => onMove && startDrag(event, solution)} onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer>{onEdit && <button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button>}</article>)}</div></article>; })}</section></>;
 }
 
 function SolutionDetail({ solution, onBack, onEdit }) {
@@ -370,7 +356,7 @@ function SolutionDetail({ solution, onBack, onEdit }) {
   return <>
   <section className="detail-hero">
     <button className="back-button" onClick={onBack}>{t('← Back to solutions')}</button>
-    <div className="detail-hero-row"><div><p className="eyebrow">{t('{department} · Product record').replace('{department}', t(solution.department))}</p><h1>{t(solution.name)}</h1><p>{t(solution.detail)}</p></div><button className="primary-button" onClick={() => onEdit(solution)}><Pencil size={16}/> {t('Edit solution')}</button></div>
+    <div className="detail-hero-row"><div><p className="eyebrow">{t('{department} · Product record').replace('{department}', t(solution.department))}</p><h1>{t(solution.name)}</h1><p>{t(solution.detail)}</p></div>{onEdit && <button className="primary-button" onClick={() => onEdit(solution)}><Pencil size={16}/> {t('Edit solution')}</button>}</div>
     <div className="detail-badges"><b className={`tag ${solution.stage === 'Live' ? 'live' : 'building'}`}>{t(solution.stage)}</b><span className={`health ${solution.health === 'Healthy' ? 'healthy' : 'attention'}`}><i></i>{t(solution.health)}</span><span>{t('Owner:')} <strong>{solution.owner || t('Not assigned')}</strong></span></div>
   </section>
   <section className="detail-grid">

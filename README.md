@@ -32,3 +32,23 @@ Goszakup parser output counts through a server-to-server integration. Configure:
 The token stays server-side; the browser receives only aggregate lifetime and
 current-month output counts. Product Hub shows no demo fallback when the feed is
 unavailable.
+
+## Instrument usage events
+
+Instrument pages can report a successful generated document (or another tracked
+function) to `POST /api/usage/events` using the server-only shared token:
+
+```json
+{
+  "solutionId": "offer-generator",
+  "event": "document.generated",
+  "quantity": 1,
+  "source": "commercial-offer-generator",
+  "idempotencyKey": "offer-123"
+}
+```
+
+Send `Authorization: Bearer $PRODUCT_HUB_USAGE_TOKEN`. Events are stored in
+Supabase using `PINE_USAGE_SUPABASE_SERVICE_ROLE_KEY`; the browser only reads
+aggregated lifetime and current-month totals from `GET /api/usage`. Run
+`supabase/migrations/20260827_usage_events.sql` before enabling persistence.

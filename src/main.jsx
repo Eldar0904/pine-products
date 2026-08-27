@@ -74,12 +74,6 @@ const normaliseProfiles = (items) => items.map((item, index) => ({
 
 const developmentMode = import.meta.env.VITE_APP_MODE !== 'production';
 
-const greetingForHour = (hour) => {
-  if (hour < 12) return 'Good morning, Eldar.';
-  if (hour < 18) return 'Good afternoon, Eldar.';
-  return 'Good evening, Eldar.';
-};
-
 const formatCurrentDate = (date, language) => {
   const formatted = new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -244,7 +238,7 @@ function App() {
           {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="page-intro">
             <div>
               <p className="eyebrow">{formatCurrentDate(now, language)}</p>
-              <h1>{t(greetingForHour(now.getHours()))}</h1>
+              <h1>{t('PINE automation overview')}</h1>
               <p>{t('Your automation portfolio is stable. Two items need attention this week.')}</p>
             </div>
             {isAdmin && <button className="primary-button" onClick={createSolution}><Plus size={18}/> {t('Add solution')}</button>}

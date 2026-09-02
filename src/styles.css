@@ -100,6 +100,8 @@ main, .page-content, .table-panel, .solution-table { min-width:0; }
 .phase-step-list { display:grid; }
 .phase-step-row { display:grid; grid-template-columns:35px minmax(0,1fr) auto 20px; gap:14px; align-items:center; padding:18px 22px; border:0; border-bottom:1px solid #e8ece7; background:#fff; text-align:left; }
 .phase-step-row:hover { background:#f8faf7; }.phase-step-row>b { color:#94a199; font:500 10px 'DM Mono',monospace; }.phase-step-row strong,.phase-step-row small { display:block; }.phase-step-row strong { color:#29463d; font-size:12px; line-height:1.55; }.phase-step-row small { color:#7a8981; margin-top:5px; font-size:9px; }.phase-step-row>svg { color:#6c857b; }
+.phase-step-row .erp-step-status { grid-column:auto; justify-self:end; }
+.phase-step-row>svg { justify-self:end; }
 .phase-exit { margin-top:15px; padding:22px 24px; background:#eef3ed; }.phase-exit>p:last-child { margin:0; color:#385449; font-size:13px; line-height:1.7; }
 .phase-pagination { display:flex; justify-content:space-between; gap:12px; margin-top:20px; }.phase-pagination button { border:1px solid #cfdad2; border-radius:9px; background:#fff; color:#286255; padding:10px 14px; font-size:10px; font-weight:700; }
 @media (max-width:700px) { .architecture-questions { grid-template-columns:1fr; }.architecture-questions>div,.principles-grid { grid-template-columns:1fr; }.principles-grid article:nth-child(odd) { border-right:0; }.phase-page-head { grid-template-columns:1fr; padding-top:34px; }.phase-edit-button { left:0; right:auto; }.phase-progress { width:100%; }.phase-step-row { grid-template-columns:28px minmax(0,1fr); }.phase-step-row .erp-step-status,.phase-step-row>svg { grid-column:2; } }

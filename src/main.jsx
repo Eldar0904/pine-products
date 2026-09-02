@@ -359,9 +359,9 @@ function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
 }
 
 function ArchitectureConcept() {
-  return <><section className="architecture-hero"><p className="eyebrow">ПРОЕКТНО-ОРИЕНТИРОВАННАЯ ERP</p><h1>Продуктовая концепция</h1><p>{productConcept.description}</p></section>
+  return <><section className="architecture-hero"><p className="eyebrow">ПРОЕКТНО-ОРИЕНТИРОВАННАЯ ERP</p><h1>Концепция продукта</h1><p>{productConcept.description}</p></section>
     <section className="architecture-questions"><p>Система должна быстро отвечать на четыре вопроса:</p><div>{productConcept.questions.map((question, index) => <article key={question}><b>{String(index + 1).padStart(2, '0')}</b><strong>{question}</strong></article>)}</div></section>
-    <section className="principles-section"><div className="section-title"><p className="eyebrow">ОСНОВА ПРОДУКТА</p><h2>Принципы проектирования</h2></div><div className="principles-grid">{designPrinciples.map(([title, description], index) => <article key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{description}</p></article>)}</div></section></>;
+    <section className="principles-section"><div className="section-title"><p className="eyebrow">ОСНОВА ПРОДУКТА</p><h2>Принципы проекта</h2></div><div className="principles-grid">{designPrinciples.map(([title, description], index) => <article key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{description}</p></article>)}</div></section></>;
 }
 
 function ErpPhasePage({ phase, roadmap, now, onNavigate, onEdit }) {

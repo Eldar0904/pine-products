@@ -1,77 +1,63 @@
-export const ERP_ROADMAP_STORAGE_KEY = 'pine-product-hub-erp-roadmap-v1';
+export const ERP_ROADMAP_STORAGE_KEY = 'pine-product-hub-erp-roadmap-ru-v2';
 
 const phase = (number, title, goal, steps, exitCriteria) => ({
-  id: `phase-${number}`,
-  number,
-  title,
-  goal,
-  exitCriteria,
-  steps: steps.map((text, index) => ({
-    id: `phase-${number}-step-${index + 1}`,
-    text,
-    status: 'Planned',
-    notes: '',
-  })),
+  id: `phase-${number}`, number, title, goal, exitCriteria,
+  steps: steps.map((text, index) => ({ id: `phase-${number}-step-${index + 1}`, text, status: 'Planned', notes: '' })),
 });
 
-export const seedErpRoadmap = [
-  phase(0, 'Discovery and vocabulary', 'Turn process maps and interviews into a shared language.', [
-    'Select one project archetype and two or three collaborating departments.',
-    'Capture process maps using the intake template.',
-    'Define the first role matrix, project lifecycle, handoff contract, approval policies, and document classifications.',
-    'Identify the minimum audit and retention requirements.',
-    'Validate the stack and choose the initial durable job runner and storage adapter.',
-  ], 'One bounded pilot process is mapped end-to-end, including happy path, rework, rejection, timeout, and cancellation.'),
-  phase(1, 'Foundation and project context', 'Make the project a trustworthy shared context.', [
-    'Managed identity and organization membership.',
-    'Departments, roles, project membership, and scoped authorization.',
-    'Project create/read/update/archive.',
-    'Project activity timeline and comments.',
-    'Document metadata plus object storage upload intents.',
-    'OpenAPI contracts, generated client, structured logging, audit foundation.',
-  ], 'Pilot users can create a project, collaborate, attach evidence, and see a reliable history.'),
-  phase(2, 'Work queue and explicit handoffs', 'Replace scattered follow-up with accountable work.', [
-    'Task lifecycle, assignment, due dates, blockers, dependencies, and rework.',
-    'Role-aware My Work queue.',
-    'Handoff offer/accept/return/reject flow.',
-    'Notifications and mentions, initially in-app plus one outbound channel.',
-    'Responsive task completion for phone and tablet.',
-  ], 'A cross-department project can move through handoffs without relying on a separate tracker or chat thread for ownership.'),
-  phase(3, 'Configurable workflow runtime', 'Make the pilot process configurable and durable.', [
-    'Workflow definitions and immutable published versions.',
-    'Workflow instances, task/approval generation, rules, parallel paths, timers, and SLAs.',
-    'Durable outbox and worker with retry/dead-letter visibility.',
-    'Workflow validation and simulator.',
-    'Activity and audit projections from events.',
-  ], 'An authorized administrator can configure and publish the pilot workflow, and a running instance remains correct across worker/API restarts.'),
-  phase(4, 'Approvals, deliverables, and project cockpit', 'Connect decisions and outcomes to the project.', [
-    'Approval policies and separation of duties.',
-    'Deliverables, acceptance evidence, and document version requirements.',
-    'Project cockpit with work, risks, handoffs, deliverables, budget snapshot, and activity.',
-    'SLA escalation and exception inbox.',
-    'Basic budget and cost tracking.',
-  ], 'Project leads can see the full operational picture and resolve overdue or blocked work from one place.'),
-  phase(5, 'Integrations and reporting', 'Reduce duplicate entry without giving up ownership clarity.', [
-    'Adapter framework with connection health and reconciliation.',
-    'First calendar/collaboration integration based on validated demand.',
-    'Finance import/export boundary with idempotency and approval controls.',
-    'Search, saved views, operational reporting, and curated analytics export.',
-    'Organization-level templates and workflow reuse.',
-  ], 'Integrations are observable, replayable, and do not make external systems the hidden source of workflow truth.'),
-  phase(6, 'Scale and selective extraction', 'Respond to proven constraints rather than hypothetical scale.', [
-    'Load test queue, cockpit, event lag, and document flows.',
-    'Partition/archive high-volume activity and audit data if needed.',
-    'Add read-model workers or a dedicated search index where measurements justify them.',
-    'Consider extracting a module only when its ownership, scale, deployment cadence, or failure isolation is materially different.',
-    'Consider a dedicated workflow runtime only against the triggers in the system context document.',
-  ], 'Scale changes are introduced only in response to measured constraints and preserve clear module ownership.'),
+export const productConcept = {
+  description: 'ERP - это проектно-ориентированная операционная система для межфункциональной работы. Проект служит общим контекстом для задач, передач ответственности, решений, документов, результатов, затрат, сообщений и согласований. Каждое подразделение может сохранить собственную терминологию и правила работы, а организация получает единый прослеживаемый поток работ.',
+  questions: ['Что требует моего внимания?', 'Что блокирует проект?', 'Кто отвечает за следующую передачу работы?', 'Что изменилось, почему и какими доказательствами это подтверждено?'],
+};
+
+export const designPrinciples = [
+  ['Контекст проекта важнее изолированных подразделений', 'Представления подразделений являются проекциями общих записей проекта, а не отдельными системами учета.'],
+  ['Процесс является данными, а не жестко заданным кодом', 'Определения, версии, правила, SLA и пути исключений хранятся как настраиваемые записи.'],
+  ['Явная ответственность', 'У каждой задачи, передачи, согласования и исключения есть текущий владелец и понятное следующее действие.'],
+  ['Надежная координация', 'Изменения состояния транзакционны, а события, уведомления, напоминания и интеграции восстанавливаемы и идемпотентны.'],
+  ['Человек остается в контуре', 'Автоматизация предлагает, маршрутизирует, напоминает и эскалирует; ответственные пользователи утверждают, отклоняют или переопределяют.'],
+  ['Аудит без имитации тотального наблюдения', 'Фиксируются значимые бизнес-решения и изменения состояния, а не каждое движение в интерфейсе.'],
+  ['Адаптивное выполнение', 'Минимальное полезное действие доступно с телефона; кокпит и планирование раскрываются на планшете и настольном экране.'],
+  ['Обратимая эволюция', 'Стабильные доменные контракты позволяют выделить модуль в сервис только при доказанной потребности.'],
 ];
 
+export const seedErpRoadmap = [
+  phase(0, 'Исследование и словарь', 'Превратить карты процессов и интервью в общий язык.', ['Выбрать один тип проекта и два-три взаимодействующих подразделения.', 'Собрать карты процессов по шаблону.', 'Определить матрицу ролей, жизненный цикл проекта, контракт передачи, политики согласования и классы документов.', 'Выявить минимальные требования аудита и хранения.', 'Подтвердить стек, job runner и storage adapter.'], 'Один ограниченный пилотный процесс описан end-to-end, включая нормальный путь, доработку, отклонение, тайм-аут и отмену.'),
+  phase(1, 'Основа и контекст проекта', 'Сделать проект надежным общим контекстом.', ['Идентификация, членство, подразделения, роли и права.', 'CRUD и архивирование проекта.', 'Хронология проекта и комментарии.', 'Метаданные документов и намерения загрузки.', 'OpenAPI, генерируемый клиент, структурные логи и основа аудита.'], 'Пилотные пользователи создают проект, сотрудничают, прикладывают доказательства и видят надежную историю.'),
+  phase(2, 'Очередь и явные передачи', 'Заменить разрозненные напоминания ответственной работой.', ['Жизненный цикл задач, назначения, сроки, блокировки, зависимости и доработка.', 'Ролевая «Моя очередь».', 'Offer/accept/return/reject для передач.', 'Уведомления и упоминания: in-app и один внешний канал.', 'Выполнение задач с телефона и планшета.'], 'Межфункциональный проект движется через передачи без отдельного трекера или чата для определения владельца.'),
+  phase(3, 'Настраиваемый runtime процессов', 'Сделать пилотный процесс настраиваемым и долговечным.', ['Определения процессов и неизменяемые опубликованные версии.', 'Экземпляры, генерация задач и согласований, правила, параллельные пути, таймеры и SLA.', 'Outbox и worker с видимыми повторами и dead-letter.', 'Валидация процессов и симулятор.', 'Проекции активности и аудита.'], 'Администратор публикует пилотный процесс, а его экземпляр корректно переживает перезапуски API и worker.'),
+  phase(4, 'Согласования, результаты и кокпит', 'Связать решения и результаты с проектом.', ['Политики согласования и разделение обязанностей.', 'Deliverable, доказательства приемки и требования к версиям документов.', 'Кокпит работы, рисков, передач, результатов, бюджета и активности.', 'Эскалация SLA и inbox исключений.', 'Базовый учет бюджета и затрат.'], 'Руководитель видит операционную картину и устраняет просрочки и блокировки из одного места.'),
+  phase(5, 'Интеграции и отчетность', 'Сократить повторный ввод без потери ясности владения.', ['Каркас адаптеров, состояние соединений и сверка.', 'Первая интеграция календаря/collaboration по подтвержденной потребности.', 'Финансовый импорт/экспорт с идемпотентностью и согласованием.', 'Поиск, сохраненные виды, операционные отчеты и подготовленный экспорт аналитики.', 'Организационные шаблоны и повторное использование процессов.'], 'Интеграции наблюдаемы и воспроизводимы и не превращают внешнюю систему в скрытый источник истины процесса.'),
+  phase(6, 'Масштабирование и выборочное выделение', 'Реагировать на доказанные ограничения, а не гипотетический масштаб.', ['Нагрузочные тесты очереди, кокпита, event lag и документов.', 'Партиционирование и архивирование объемной активности и аудита при необходимости.', 'Workers моделей чтения или отдельный поиск только по измерениям.', 'Выделение модуля лишь при существенном отличии ответственности, масштаба, частоты релизов или изоляции отказов.', 'Специализированный runtime процессов - только по триггерам системного контекста.'], 'Изменения масштаба вводятся только в ответ на измеренные ограничения и сохраняют ясное владение модулями.'),
+];
+
+export function russifyRoadmap(items) {
+  if (!Array.isArray(items) || !items.length) return seedErpRoadmap;
+  const hasCyrillic = (value) => /[А-Яа-яЁё]/.test(String(value || ''));
+  return seedErpRoadmap.map((russianPhase) => {
+    const existing = items.find((item) => item.id === russianPhase.id);
+    if (!existing) return russianPhase;
+    const translatedSteps = russianPhase.steps.map((russianStep) => {
+      const previous = existing.steps?.find((step) => step.id === russianStep.id);
+      return previous ? {
+        ...russianStep,
+        text: hasCyrillic(previous.text) ? previous.text : russianStep.text,
+        status: previous.status || 'Planned',
+        notes: previous.notes || '',
+      } : russianStep;
+    });
+    const addedSteps = (existing.steps || []).filter((step) => !russianPhase.steps.some((seedStep) => seedStep.id === step.id));
+    return {
+      ...russianPhase,
+      title: hasCyrillic(existing.title) ? existing.title : russianPhase.title,
+      goal: hasCyrillic(existing.goal) ? existing.goal : russianPhase.goal,
+      exitCriteria: hasCyrillic(existing.exitCriteria) ? existing.exitCriteria : russianPhase.exitCriteria,
+      steps: [...translatedSteps, ...addedSteps],
+    };
+  });
+}
+
 export function loadErpRoadmap() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(ERP_ROADMAP_STORAGE_KEY));
-    return Array.isArray(stored) && stored.length ? stored : seedErpRoadmap;
-  } catch {
-    return seedErpRoadmap;
-  }
+  try { return russifyRoadmap(JSON.parse(localStorage.getItem(ERP_ROADMAP_STORAGE_KEY))); }
+  catch { return seedErpRoadmap; }
 }

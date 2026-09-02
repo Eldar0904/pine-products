@@ -18,7 +18,7 @@ import {
   useLang,
 } from './lib/i18n';
 import { applyRemoteUsage, formatOutputs, getOutputMetrics, loadRemoteUsage, totalOutputs } from './lib/usage';
-import { ERP_ROADMAP_STORAGE_KEY, loadErpRoadmap } from './lib/erp-roadmap';
+import { designPrinciples, ERP_ROADMAP_STORAGE_KEY, loadErpRoadmap, productConcept, russifyRoadmap } from './lib/erp-roadmap';
 
 const seedSolutions = [
   { id: 'offer-generator', name: 'Commercial Offer Generator', department: 'Procurement', stage: 'Live', health: 'Healthy', value: '28 hrs', detail: '86 completed offers this month', accent: 'teal', owner: 'Eldar Pine', purpose: 'Generate consistent commercial offers from approved procurement data.', businessCase: 'Reduce repeated formatting work and improve offer turnaround time.', nextStep: 'Validate the monthly time-saving baseline with Procurement.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-09', blocker: '', aiOpportunity: 'Draft offer summary from structured data after human review.' },
@@ -84,8 +84,8 @@ const formatCurrentDate = (date, language) => {
 
 function App() {
   const [now, setNow] = useState(() => new Date());
-  const [language, setLanguage] = useState(() => localStorage.getItem('pine-product-hub-language') || 'ru');
-  const [section, setSection] = useState('Roadmap');
+  const language = 'ru';
+  const [section, setSection] = useState('Concept');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auth, setAuth] = useState({ state: developmentMode || !isSupabaseConfigured ? 'demo' : 'loading', role: 'admin', email: '' });
   const [saveError, setSaveError] = useState('');
@@ -114,7 +114,11 @@ function App() {
   const [roadmapEditor, setRoadmapEditor] = useState(null);
   const t = useMemo(() => createTranslator(language), [language]);
   const isAdmin = auth.role === 'admin';
-  const nav = ['Roadmap', 'Subscriptions'];
+  const nav = [
+    { id: 'Concept', label: 'Главная' },
+    ...roadmap.map((phase) => ({ id: phase.id, label: `Этап ${phase.number}` })),
+    { id: 'Subscriptions', label: 'Подписки' },
+  ];
 
   useEffect(() => localStorage.setItem('pine-product-hub-solutions', JSON.stringify(solutions)), [solutions]);
   useEffect(() => localStorage.setItem('pine-product-hub-subscriptions', JSON.stringify(subscriptions)), [subscriptions]);
@@ -124,10 +128,7 @@ function App() {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  useEffect(() => {
-    localStorage.setItem('pine-product-hub-language', language);
-    document.documentElement.lang = language;
-  }, [language]);
+  useEffect(() => { document.documentElement.lang = 'ru'; }, []);
   useEffect(() => { if (selectedSolution) window.scrollTo({ top: 0, behavior: 'smooth' }); }, [selectedSolution]);
   useEffect(() => {
     let cancelled = false;
@@ -146,11 +147,15 @@ function App() {
       if (!data?.length) { setAuth({ state: 'waiting', role: '', email: session.user.email || '' }); return; }
       const role = data[0].role;
       setAuth({ state: 'ready', role, email: session.user.email || '' });
-      setSection('Roadmap');
+      setSection('Concept');
       try {
         setSolutions(normaliseSolutions(await loadSolutions()));
         const sharedRoadmap = await loadRemoteRoadmap();
-        if (sharedRoadmap) setRoadmap(sharedRoadmap);
+        if (sharedRoadmap) {
+          const russianRoadmap = russifyRoadmap(sharedRoadmap);
+          setRoadmap(russianRoadmap);
+          if (role === 'admin') await saveRemoteRoadmap(russianRoadmap);
+        }
       } catch (loadError) { setSaveError(loadError.message); }
     };
     supabase.auth.getSession().then(({ data }) => resolveSession(data.session));
@@ -236,9 +241,9 @@ function App() {
           <button className="icon-button mobile-only" onClick={() => setMobileOpen(false)} aria-label={t('Close navigation')}><X size={18}/></button>
         </div>
         <nav>
-          <p className="nav-label">{t('Workspace')}</p>
-          {nav.map(item => <button key={item} onClick={() => { setSelectedSolution(null); setSection(item); setMobileOpen(false); }} className={section === item ? 'nav-item active' : 'nav-item'}>
-            {item.includes('overview') || item === 'Overview' ? <LayoutDashboard size={18}/> : item === 'Solutions' ? <Boxes size={18}/> : item === 'Roadmap' ? <Sparkles size={18}/> : item === 'Operations' ? <Activity size={18}/> : item === 'Subscriptions' ? <Server size={18}/> : item === 'Department impact' ? <Users size={18}/> : <CircleAlert size={18}/>}<span>{t(item)}</span>
+          <p className="nav-label">АРХИТЕКТУРА ERP</p>
+          {nav.map(item => <button key={item.id} onClick={() => { setSelectedSolution(null); setSection(item.id); setMobileOpen(false); }} className={section === item.id ? 'nav-item active' : 'nav-item'}>
+            {item.id === 'Concept' ? <LayoutDashboard size={18}/> : item.id === 'Subscriptions' ? <Server size={18}/> : <Sparkles size={18}/>}<span>{item.label}</span>
           </button>)}
         </nav>
         <div className="sidebar-footer">
@@ -252,15 +257,15 @@ function App() {
       <main>
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label={t('Open navigation')}><Menu size={20}/></button>
-          <div className="breadcrumb"><span>PINE / PRODUCT HUB</span><b>/</b><strong>{selectedSolution ? selectedSolution.name.toUpperCase() : t('WORKSPACE')}</strong></div>
+          <div className="breadcrumb"><span>PINE / PRODUCT HUB</span><b>/</b><strong>{selectedSolution ? selectedSolution.name.toUpperCase() : nav.find((item) => item.id === section)?.label?.toUpperCase()}</strong></div>
           <div className="topbar-actions">
-            <button className="language-switch" onClick={() => setLanguage((current) => current === 'ru' ? 'en' : 'ru')} aria-label={language === 'ru' ? 'Switch to English' : 'Переключить на русский'}>{language === 'ru' ? 'EN' : 'RU'}</button><button className="icon-button"><Bell size={18}/><i></i></button>
+            <button className="icon-button"><Bell size={18}/><i></i></button>
           </div>
         </header>
 
         <div className="page-content">
           {selectedSolution ? <SolutionDetail solution={selectedSolution} onBack={() => setSelectedSolution(null)} onEdit={isAdmin ? setEditingSolution : undefined} /> : <>
-          {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="page-intro">
+          {section === 'Overview' && <section className="page-intro">
             <div>
               <p className="eyebrow">{formatCurrentDate(now, language)}</p>
               <h1>{t('PINE automation overview')}</h1>
@@ -269,7 +274,7 @@ function App() {
             {isAdmin && <button className="primary-button" onClick={createSolution}><Plus size={18}/> {t('Add solution')}</button>}
           </section>}
 
-          {!['Subscriptions', 'Roadmap', 'Operations'].includes(section) && <section className="metrics-grid">
+          {section === 'Overview' && <section className="metrics-grid">
             <Metric label={t('Active solutions')} value={String(solutions.length)} sub={t('2 live · 1 building · 1 needs baseline')} icon={<Clock3 size={19}/>} />
             <Metric label={t('Completed outputs')} value={String(totalOutputs(solutions))} sub={t(solutions.some((item) => item.usageSource === 'tracked') ? 'Combined total produced by connected tools' : 'Usage tracking not connected yet')} icon={<ShieldCheck size={19}/>} />
             <Metric label={t('Needs attention')} value={solutions.filter((item) => item.health !== 'Healthy').length} sub={t('Catalog Matcher · EduMax baseline')} icon={<CircleAlert size={19}/>} tone="attention" />
@@ -277,8 +282,8 @@ function App() {
           </section>}
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
-          {section === 'Roadmap'
-            ? <ErpRoadmap roadmap={roadmap} onEdit={isAdmin ? setRoadmapEditor : undefined}/>
+          {section === 'Concept' ? <ArchitectureConcept/> : section.startsWith('phase-')
+            ? <ErpPhasePage phase={roadmap.find((item) => item.id === section)} roadmap={roadmap} onNavigate={setSection} onEdit={isAdmin ? setRoadmapEditor : undefined}/>
             : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createSolution : undefined} onOpen={setSelectedSolution} onEditSubscription={isAdmin ? setEditingSubscription : undefined} onCreateSubscription={isAdmin ? createSubscription : undefined} onEditProfile={isAdmin ? setEditingProfile : undefined}/>}
           </>}
         </div>
@@ -356,19 +361,21 @@ function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="technical-editor-title"><div className="editor-heading"><div><p className="eyebrow">{t('Admin only')}</p><h2 id="technical-editor-title">{t('Technical profile')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close technical profile editor')}><X size={18}/></button></div><form onSubmit={submit}><label>{t('Solution')}<select value={draft.solutionId} onChange={update('solutionId')}>{solutions.map((solution) => <option key={solution.id} value={solution.id}>{t(solution.name)}</option>)}</select></label><div className="form-grid"><label>{t('Hosting')}<input value={draft.hosting || ''} onChange={update('hosting')} placeholder={t('e.g. Vercel')}/></label><label>{t('Database')}<input value={draft.database || ''} onChange={update('database')} placeholder={t('e.g. Supabase')}/></label></div><label>{t('Repository')}<input value={draft.repository || ''} onChange={update('repository')} placeholder={t('e.g. GitHub repository URL or name')}/></label><label>{t('Support owner')}<input value={draft.supportOwner || ''} onChange={update('supportOwner')} placeholder={t('e.g. Eldar Pine')}/></label><div className="form-grid"><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label><label>{t('Runbook / support reference')}<input value={draft.runbook || ''} onChange={update('runbook')} placeholder={t('e.g. Deployment checklist')}/></label></div><label>{t('Operational risk')}<textarea value={draft.risk || ''} onChange={update('risk')} rows="3" placeholder={t("Leave as 'No current risk' when everything is stable.")}/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save profile')}</button></div></form></section></div>;
 }
 
-function ErpRoadmap({ roadmap, onEdit }) {
+function ArchitectureConcept() {
+  return <><section className="architecture-hero"><p className="eyebrow">ПРОЕКТНО-ОРИЕНТИРОВАННАЯ ERP</p><h1>Продуктовая концепция</h1><p>{productConcept.description}</p></section>
+    <section className="architecture-questions"><p>Система должна быстро отвечать на четыре вопроса:</p><div>{productConcept.questions.map((question, index) => <article key={question}><b>{String(index + 1).padStart(2, '0')}</b><strong>{question}</strong></article>)}</div></section>
+    <section className="principles-section"><div className="section-title"><p className="eyebrow">ОСНОВА ПРОДУКТА</p><h2>Принципы проектирования</h2></div><div className="principles-grid">{designPrinciples.map(([title, description], index) => <article key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{description}</p></article>)}</div></section></>;
+}
+
+function ErpPhasePage({ phase, roadmap, onNavigate, onEdit }) {
   const { t } = useLang();
-  const completed = roadmap.reduce((sum, phase) => sum + phase.steps.filter((step) => step.status === 'Completed').length, 0);
-  const total = roadmap.reduce((sum, phase) => sum + phase.steps.length, 0);
-  return <>
-    <section className="registry-intro erp-roadmap-intro"><div><p className="eyebrow">{t('ERP implementation')}</p><h1>{t('ERP delivery roadmap')}</h1><p>{t('Seven editable phases derived from the approved architecture documents.')}</p></div><div className="roadmap-progress"><strong>{completed} / {total}</strong><span>{t('steps completed')}</span></div></section>
-    <section className="erp-roadmap">{roadmap.map((phase) => <article className="erp-phase" key={phase.id}>
-      <header className="erp-phase-head"><div><span>{t('Phase')} {phase.number}</span><h2>{phase.title}</h2><p>{phase.goal}</p></div>{onEdit && <button className="roadmap-edit" onClick={() => onEdit({ kind: 'phase', phaseId: phase.id, title: phase.title, goal: phase.goal, exitCriteria: phase.exitCriteria })} aria-label={t('Edit phase')}><Pencil size={14}/></button>}</header>
-      <div className="erp-steps">{phase.steps.map((step, index) => <button className="erp-step" key={step.id} onClick={() => onEdit?.({ kind: 'step', phaseId: phase.id, stepId: step.id, text: step.text, status: step.status, notes: step.notes || '' })}><span className={`erp-step-status status-${step.status.toLowerCase().replace(' ', '-')}`}>{t(step.status)}</span><b>{String(index + 1).padStart(2, '0')}</b><strong>{step.text}</strong>{step.notes && <small>{step.notes}</small>}{onEdit && <Pencil size={13}/>}</button>)}</div>
-      {onEdit && <button className="erp-add-step" onClick={() => onEdit({ kind: 'step', phaseId: phase.id, stepId: '', text: '', status: 'Planned', notes: '' })}><Plus size={14}/>{t('Add step')}</button>}
-      <footer className="erp-exit"><span>{t('Exit criteria')}</span><p>{phase.exitCriteria}</p></footer>
-    </article>)}</section>
-  </>;
+  if (!phase) return null;
+  const index = roadmap.findIndex((item) => item.id === phase.id);
+  const completed = phase.steps.filter((step) => step.status === 'Completed').length;
+  return <><section className="phase-page-head"><div><p className="eyebrow">ЭТАП {phase.number} ИЗ {roadmap.length - 1}</p><h1>{phase.title}</h1><p>{phase.goal}</p></div><div className="phase-progress"><strong>{completed} / {phase.steps.length}</strong><span>шагов завершено</span></div>{onEdit && <button className="phase-edit-button" onClick={() => onEdit({ kind: 'phase', phaseId: phase.id, title: phase.title, goal: phase.goal, exitCriteria: phase.exitCriteria })}><Pencil size={15}/>Редактировать этап</button>}</section>
+    <section className="phase-steps-panel"><div className="section-title"><p className="eyebrow">ПЛАН РЕАЛИЗАЦИИ</p><h2>Шаги этапа</h2></div><div className="phase-step-list">{phase.steps.map((step, stepIndex) => <button key={step.id} className="phase-step-row" onClick={() => onEdit?.({ kind: 'step', phaseId: phase.id, stepId: step.id, text: step.text, status: step.status, notes: step.notes || '' })}><b>{String(stepIndex + 1).padStart(2, '0')}</b><div><strong>{step.text}</strong>{step.notes && <small>{step.notes}</small>}</div><span className={`erp-step-status status-${step.status.toLowerCase().replace(' ', '-')}`}>{t(step.status)}</span>{onEdit && <Pencil size={14}/>}</button>)}</div>{onEdit && <button className="erp-add-step" onClick={() => onEdit({ kind: 'step', phaseId: phase.id, stepId: '', text: '', status: 'Planned', notes: '' })}><Plus size={14}/>Добавить шаг</button>}</section>
+    <section className="phase-exit"><p className="eyebrow">КРИТЕРИЙ ВЫХОДА</p><p>{phase.exitCriteria}</p></section>
+    <nav className="phase-pagination">{index > 0 ? <button onClick={() => onNavigate(roadmap[index - 1].id)}>← Этап {roadmap[index - 1].number}</button> : <button onClick={() => onNavigate('Concept')}>← Главная</button>} {index < roadmap.length - 1 && <button onClick={() => onNavigate(roadmap[index + 1].id)}>Этап {roadmap[index + 1].number} →</button>}</nav></>;
 }
 
 function RoadmapEditor({ item, onClose, onSave, onDelete }) {

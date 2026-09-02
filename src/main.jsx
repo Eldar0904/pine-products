@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, ArrowRight, Bell, Boxes, ChevronDown, CircleAlert, Clock3,
+  Activity, ArrowRight, Bell, Boxes, CircleAlert, Clock3,
   FileText, LayoutDashboard, Menu, Plus, Server, ShieldCheck,
-  Pencil, Sparkles, Trash2, Users, X
+  Pencil, Settings, Sparkles, Trash2, Users, X
 } from 'lucide-react';
+import pineLogo from './assets/pine-logo.png';
 import './styles.css';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { deleteRemoteSolution, loadRemoteRoadmap, loadSolutions, saveRemoteRoadmap, saveRemoteSolution } from './lib/hub-data';
@@ -236,8 +237,8 @@ function App() {
     <div className="app-shell">
       <aside className={mobileOpen ? 'sidebar sidebar--open' : 'sidebar'}>
         <div className="brand">
-          <div className="brand-mark">P</div>
-          <div><strong>PINE</strong><span>Product Hub</span></div>
+          <img className="brand-logo" src={pineLogo} alt="PINE"/>
+          <span className="brand-product">ERP</span>
           <button className="icon-button mobile-only" onClick={() => setMobileOpen(false)} aria-label={t('Close navigation')}><X size={18}/></button>
         </div>
         <nav>
@@ -246,11 +247,7 @@ function App() {
             {item.id === 'Concept' ? <LayoutDashboard size={18}/> : item.id === 'Subscriptions' ? <Server size={18}/> : <Sparkles size={18}/>}<span>{item.label}</span>
           </button>)}
         </nav>
-        <div className="sidebar-footer">
-          <div className="user-avatar">EP</div>
-          <div><strong>Eldar Pine</strong><span>{t(isAdmin ? 'Administrator' : 'Workspace access')}</span></div>
-          <ChevronDown size={16}/>
-        </div>
+        <button className="sidebar-settings" type="button"><Settings size={18}/><span>Настройки</span></button>
       </aside>
       {mobileOpen && <button className="backdrop" onClick={() => setMobileOpen(false)} aria-label={t('Close navigation')}/>}
 
@@ -305,13 +302,13 @@ function AccessWaitingScreen({ email }) {
   return <MessageScreen title={t('Access is awaiting approval')} message={`${email || 'This account'}: ${t('This account has signed in, but an Admin has not assigned it a Product Hub role yet.')}`}/>;
 }
 function MessageScreen({ title, message }) {
-  return <main className="access-screen"><div className="access-card"><div className="brand-mark">P</div><p className="eyebrow">PINE Product Hub</p><h1>{title}</h1><p>{message}</p></div></main>;
+  return <main className="access-screen"><div className="access-card"><img className="access-logo" src={pineLogo} alt="PINE"/><p className="eyebrow">PINE Product Hub</p><h1>{title}</h1><p>{message}</p></div></main>;
 }
 function SignInScreen() {
   const { t } = useLang();
   const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const submit = async (event) => { event.preventDefault(); setBusy(true); setError(''); const { error: signInError } = await supabase.auth.signInWithPassword({ email, password }); setBusy(false); if (signInError) setError(signInError.message); };
-  return <main className="access-screen"><section className="access-card"><div className="brand-mark">P</div><p className="eyebrow">PINE Product Hub</p><h1>{t('Sign in to your workspace.')}</h1><p>{t('Use the Product Hub account created by your administrator.')}</p><form onSubmit={submit}><label>{t('Work email')}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required/></label><label>{t('Password')}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required/></label>{error && <div className="form-error">{error}</div>}<button className="primary-button" disabled={busy}>{busy ? t('Signing in…') : t('Sign in')}</button></form></section></main>;
+  return <main className="access-screen"><section className="access-card"><img className="access-logo" src={pineLogo} alt="PINE"/><p className="eyebrow">PINE Product Hub</p><h1>{t('Sign in to your workspace.')}</h1><p>{t('Use the Product Hub account created by your administrator.')}</p><form onSubmit={submit}><label>{t('Work email')}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required/></label><label>{t('Password')}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required/></label>{error && <div className="form-error">{error}</div>}<button className="primary-button" disabled={busy}>{busy ? t('Signing in…') : t('Sign in')}</button></form></section></main>;
 }
 
 function Metric({ label, value, sub, icon, tone }) { return <article className={`metric-card ${tone || ''}`}><div className="metric-icon">{icon}</div><p>{label}</p><strong>{value}</strong><span>{sub}</span></article>; }

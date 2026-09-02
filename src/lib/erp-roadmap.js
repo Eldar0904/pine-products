@@ -1,4 +1,26 @@
 export const ERP_ROADMAP_STORAGE_KEY = 'pine-product-hub-erp-roadmap-ru-v2';
+export const ERP_ROADMAP_START = Date.UTC(2026, 8, 1, 19);
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const ROADMAP_TIME_ZONE = 'Asia/Qyzylorda';
+
+export function getPhaseSchedule(number, now = new Date()) {
+  const start = new Date(ERP_ROADMAP_START + number * WEEK_MS);
+  const end = new Date(start.getTime() + WEEK_MS);
+  const displayEnd = new Date(end.getTime() - 1);
+  const currentTime = now.getTime();
+  const status = currentTime < start.getTime() ? 'upcoming' : currentTime >= end.getTime() ? 'completed' : 'in-progress';
+  const progress = status === 'completed' ? 100 : status === 'upcoming' ? 0 : Math.min(100, Math.max(0, Math.round(((currentTime - start.getTime()) / WEEK_MS) * 100)));
+  const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: ROADMAP_TIME_ZONE });
+  const yearFormat = new Intl.DateTimeFormat('ru-RU', { year: 'numeric', timeZone: ROADMAP_TIME_ZONE });
+  return {
+    start,
+    end,
+    status,
+    statusLabel: status === 'completed' ? 'Завершён' : status === 'in-progress' ? 'В процессе' : 'Скоро',
+    progress,
+    range: `${dateFormat.format(start)} - ${dateFormat.format(displayEnd)} ${yearFormat.format(displayEnd)}`,
+  };
+}
 
 const phase = (number, title, goal, steps, exitCriteria) => ({
   id: `phase-${number}`, number, title, goal, exitCriteria,

@@ -87,6 +87,15 @@ main, .page-content, .table-panel, .solution-table { min-width:0; }
 .phase-page-head>div:first-child>p:last-child { max-width:720px; color:#687a71; font-size:14px; line-height:1.65; margin:16px 0 0; }
 .phase-progress { min-width:135px; padding:15px 17px; border:1px solid #dce3dc; border-radius:12px; background:#fff; }
 .phase-progress strong,.phase-progress span { display:block; }.phase-progress strong { color:#173f39; font-size:23px; }.phase-progress span { color:#7a8981; font-size:9px; margin-top:3px; }
+.phase-progress { min-width:245px; }
+.phase-progress strong { margin-top:8px; font-size:14px; letter-spacing:-.02em; }
+.phase-progress>span:not(.phase-live-status) { margin-top:6px; font-size:10px; }
+.phase-progress>i { display:block; height:5px; margin-top:11px; overflow:hidden; border-radius:999px; background:#e5ece9; }
+.phase-progress>i>b { display:block; height:100%; border-radius:inherit; background:#3b898e; transition:width .4s ease; }
+.phase-live-status { width:max-content; margin:0; padding:4px 7px; border-radius:999px; font-size:9px!important; font-weight:700; }
+.phase-live-status--in-progress { color:#28686d!important; background:#e8f2f2; }
+.phase-live-status--upcoming { color:#8a5841!important; background:#f6ebe5; }
+.phase-live-status--completed { color:#2d7254!important; background:#e5f3e8; }
 .phase-edit-button { position:absolute; right:0; top:0; display:flex; align-items:center; gap:7px; border:0; background:transparent; color:#286255; font-size:10px; font-weight:700; }
 .phase-step-list { display:grid; }
 .phase-step-row { display:grid; grid-template-columns:35px minmax(0,1fr) auto 20px; gap:14px; align-items:center; padding:18px 22px; border:0; border-bottom:1px solid #e8ece7; background:#fff; text-align:left; }
@@ -134,8 +143,11 @@ body,.app-shell { background:#f8f6f2; color:var(--ink); }
 .brand-product { padding:4px 7px; border-radius:999px; background:var(--sand-soft); color:#8a5841; font-size:9px; font-weight:700; letter-spacing:.08em; }
 .nav-label,.eyebrow { color:#6c8889; }
 .nav-item { color:#49686a; font-weight:600; }
+.nav-item-copy { display:flex; min-width:0; flex:1; align-items:center; justify-content:space-between; gap:8px; }
+.nav-item-copy small { color:#799394; font-size:8px; font-weight:600; }
 .nav-item:hover { color:var(--pine-dark); background:var(--pine-soft); }
 .nav-item.active { color:#fff; background:var(--pine); box-shadow:inset 3px 0 var(--sand); }
+.nav-item.active .nav-item-copy small { color:#e5f3f3; }
 .sidebar-settings { width:100%; display:flex; align-items:center; gap:12px; margin-top:auto; padding:13px 10px; border:1px solid #e6dfd9; border-radius:10px; background:#fff; color:#49686a; font-size:13px; font-weight:600; text-align:left; }
 .sidebar-settings:hover { border-color:#bdd5d6; background:var(--pine-soft); color:var(--pine-dark); }
 .topbar { background:rgba(248,246,242,.9); border-color:#e6dfd9; }

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
-import { deleteRemoteSolution, loadSolutions, saveRemoteSolution } from './lib/hub-data';
+import { deleteRemoteSolution, loadRemoteRoadmap, loadSolutions, saveRemoteRoadmap, saveRemoteSolution } from './lib/hub-data';
 import {
   LanguageContext,
   ROADMAP_STAGES,
@@ -18,6 +18,7 @@ import {
   useLang,
 } from './lib/i18n';
 import { applyRemoteUsage, formatOutputs, getOutputMetrics, loadRemoteUsage, totalOutputs } from './lib/usage';
+import { ERP_ROADMAP_STORAGE_KEY, loadErpRoadmap } from './lib/erp-roadmap';
 
 const seedSolutions = [
   { id: 'offer-generator', name: 'Commercial Offer Generator', department: 'Procurement', stage: 'Live', health: 'Healthy', value: '28 hrs', detail: '86 completed offers this month', accent: 'teal', owner: 'Eldar Pine', purpose: 'Generate consistent commercial offers from approved procurement data.', businessCase: 'Reduce repeated formatting work and improve offer turnaround time.', nextStep: 'Validate the monthly time-saving baseline with Procurement.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-09', blocker: '', aiOpportunity: 'Draft offer summary from structured data after human review.' },
@@ -84,7 +85,7 @@ const formatCurrentDate = (date, language) => {
 function App() {
   const [now, setNow] = useState(() => new Date());
   const [language, setLanguage] = useState(() => localStorage.getItem('pine-product-hub-language') || 'ru');
-  const [section, setSection] = useState('Overview');
+  const [section, setSection] = useState('Roadmap');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [auth, setAuth] = useState({ state: developmentMode || !isSupabaseConfigured ? 'demo' : 'loading', role: 'admin', email: '' });
   const [saveError, setSaveError] = useState('');
@@ -109,13 +110,16 @@ function App() {
     catch { return seedTechnicalProfiles; }
   });
   const [editingProfile, setEditingProfile] = useState(null);
+  const [roadmap, setRoadmap] = useState(loadErpRoadmap);
+  const [roadmapEditor, setRoadmapEditor] = useState(null);
   const t = useMemo(() => createTranslator(language), [language]);
   const isAdmin = auth.role === 'admin';
-  const nav = ['Overview', 'Roadmap', 'Operations', 'Subscriptions'];
+  const nav = ['Roadmap', 'Subscriptions'];
 
   useEffect(() => localStorage.setItem('pine-product-hub-solutions', JSON.stringify(solutions)), [solutions]);
   useEffect(() => localStorage.setItem('pine-product-hub-subscriptions', JSON.stringify(subscriptions)), [subscriptions]);
   useEffect(() => localStorage.setItem('pine-product-hub-technical-profiles', JSON.stringify(technicalProfiles)), [technicalProfiles]);
+  useEffect(() => localStorage.setItem(ERP_ROADMAP_STORAGE_KEY, JSON.stringify(roadmap)), [roadmap]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -142,8 +146,12 @@ function App() {
       if (!data?.length) { setAuth({ state: 'waiting', role: '', email: session.user.email || '' }); return; }
       const role = data[0].role;
       setAuth({ state: 'ready', role, email: session.user.email || '' });
-      setSection('Overview');
-      try { setSolutions(normaliseSolutions(await loadSolutions())); } catch (loadError) { setSaveError(loadError.message); }
+      setSection('Roadmap');
+      try {
+        setSolutions(normaliseSolutions(await loadSolutions()));
+        const sharedRoadmap = await loadRemoteRoadmap();
+        if (sharedRoadmap) setRoadmap(sharedRoadmap);
+      } catch (loadError) { setSaveError(loadError.message); }
     };
     supabase.auth.getSession().then(({ data }) => resolveSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => resolveSession(session));
@@ -195,6 +203,23 @@ function App() {
       ? current.map(item => item.id === profile.id ? profile : item)
       : [...current, profile]);
     setEditingProfile(null);
+  };
+  const persistRoadmap = async (next) => {
+    setRoadmap(next);
+    if (!developmentMode && isSupabaseConfigured) await saveRemoteRoadmap(next);
+  };
+  const saveRoadmapItem = async (draft) => {
+    const next = roadmap.map((item) => {
+      if (item.id !== draft.phaseId) return item;
+      if (draft.kind === 'phase') return { ...item, title: draft.title.trim(), goal: draft.goal.trim(), exitCriteria: draft.exitCriteria.trim() };
+      const nextStep = { id: draft.stepId || crypto.randomUUID(), text: draft.text.trim(), status: draft.status, notes: draft.notes.trim() };
+      return { ...item, steps: draft.stepId ? item.steps.map((step) => step.id === draft.stepId ? nextStep : step) : [...item.steps, nextStep] };
+    });
+    try { await persistRoadmap(next); setRoadmapEditor(null); } catch (error) { setSaveError(error.message || 'The roadmap could not be saved.'); }
+  };
+  const deleteRoadmapStep = async (phaseId, stepId) => {
+    const next = roadmap.map((phase) => phase.id === phaseId ? { ...phase, steps: phase.steps.filter((step) => step.id !== stepId) } : phase);
+    try { await persistRoadmap(next); setRoadmapEditor(null); } catch (error) { setSaveError(error.message || 'The roadmap could not be saved.'); }
   };
 
   if (auth.state === 'loading') return <LanguageContext.Provider value={{ language, t }}><LoadingScreen/></LanguageContext.Provider>;
@@ -253,7 +278,7 @@ function App() {
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
           {section === 'Roadmap'
-            ? <RoadmapBoard solutions={solutions} onOpen={setSelectedSolution} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createRoadmapCard : undefined} onMove={isAdmin ? moveRoadmapCard : undefined}/>
+            ? <ErpRoadmap roadmap={roadmap} onEdit={isAdmin ? setRoadmapEditor : undefined}/>
             : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createSolution : undefined} onOpen={setSelectedSolution} onEditSubscription={isAdmin ? setEditingSubscription : undefined} onCreateSubscription={isAdmin ? createSubscription : undefined} onEditProfile={isAdmin ? setEditingProfile : undefined}/>}
           </>}
         </div>
@@ -261,6 +286,7 @@ function App() {
       {editingSolution && <SolutionEditor solution={editingSolution} onClose={() => setEditingSolution(null)} onSave={saveSolution} onDelete={deleteSolution}/>}
       {editingSubscription && <SubscriptionEditor subscription={editingSubscription} onClose={() => setEditingSubscription(null)} onSave={saveSubscription}/>}
       {editingProfile && <TechnicalProfileEditor profile={editingProfile} solutions={solutions} onClose={() => setEditingProfile(null)} onSave={saveProfile}/>}
+      {roadmapEditor && <RoadmapEditor item={roadmapEditor} onClose={() => setRoadmapEditor(null)} onSave={saveRoadmapItem} onDelete={deleteRoadmapStep}/>}
     </div>
   </LanguageContext.Provider>;
 }
@@ -330,18 +356,30 @@ function TechnicalProfileEditor({ profile, solutions, onClose, onSave }) {
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="technical-editor-title"><div className="editor-heading"><div><p className="eyebrow">{t('Admin only')}</p><h2 id="technical-editor-title">{t('Technical profile')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close technical profile editor')}><X size={18}/></button></div><form onSubmit={submit}><label>{t('Solution')}<select value={draft.solutionId} onChange={update('solutionId')}>{solutions.map((solution) => <option key={solution.id} value={solution.id}>{t(solution.name)}</option>)}</select></label><div className="form-grid"><label>{t('Hosting')}<input value={draft.hosting || ''} onChange={update('hosting')} placeholder={t('e.g. Vercel')}/></label><label>{t('Database')}<input value={draft.database || ''} onChange={update('database')} placeholder={t('e.g. Supabase')}/></label></div><label>{t('Repository')}<input value={draft.repository || ''} onChange={update('repository')} placeholder={t('e.g. GitHub repository URL or name')}/></label><label>{t('Support owner')}<input value={draft.supportOwner || ''} onChange={update('supportOwner')} placeholder={t('e.g. Eldar Pine')}/></label><div className="form-grid"><label>{t('Health')}<select value={canonicalLabel(draft.health) || draft.health} onChange={update('health')}><option value="Healthy">{t('Healthy')}</option><option value="Attention">{t('Attention')}</option><option value="At risk">{t('At risk')}</option></select></label><label>{t('Runbook / support reference')}<input value={draft.runbook || ''} onChange={update('runbook')} placeholder={t('e.g. Deployment checklist')}/></label></div><label>{t('Operational risk')}<textarea value={draft.risk || ''} onChange={update('risk')} rows="3" placeholder={t("Leave as 'No current risk' when everything is stable.")}/></label><div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save profile')}</button></div></form></section></div>;
 }
 
-function RoadmapBoard({ solutions, onOpen, onEdit, onCreate, onMove }) {
-  const { language, t } = useLang();
-  const startDrag = (event, solution) => {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', solution.id);
-  };
-  const dropCard = (event, stage) => {
-    event.preventDefault();
-    const solution = solutions.find((item) => item.id === event.dataTransfer.getData('text/plain'));
-    if (solution) onMove(solution, stage);
-  };
-  return <><section className="registry-intro"><div><p className="eyebrow">{t('Product direction')}</p><h1>{t('Roadmap')}</h1><p>{t(onEdit ? 'Drag cards between stages or add a new card directly to a stage.' : 'Product direction and delivery stages.')}</p></div><div className="roadmap-legend"><span><i className="healthy-dot"></i> {t('Healthy')}</span><span><i className="attention-dot"></i> {t('Needs attention')}</span></div></section><section className="roadmap-board">{ROADMAP_STAGES.map((stage) => { const items = solutions.filter((solution) => resolveRoadmapStage(solution.roadmapStage, solution.stage) === stage); return <article className="roadmap-column" key={stage} onDragOver={(event) => { if (onMove) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => onMove && dropCard(event, stage)}><div className="roadmap-column-head"><div><p>{t(stage)}</p><span>{formatCountLabel(items.length, '{count} solution', '{count} solutions', t)}</span></div>{onCreate && <button className="roadmap-add" onClick={() => onCreate(stage)} aria-label={`${t('Add card')} · ${t(stage)}`}><Plus size={14}/></button>}</div><div className="roadmap-cards">{items.map((solution) => <article className="roadmap-card" key={solution.id} role="button" tabIndex="0" draggable={Boolean(onMove)} onDragStart={(event) => onMove && startDrag(event, solution)} onClick={() => onOpen(solution)}><div><i className={solution.accent}></i><span>{t(solution.department)}</span></div><strong>{t(solution.name)}</strong><p>{t(solution.nextStep) || t('Define the next step.')}</p><footer><span className={solution.health === 'Healthy' ? 'healthy-text' : 'review-text'}>{t(solution.health)}</span><b>{solution.targetDate ? new Date(`${solution.targetDate}T00:00:00`).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-GB',{day:'2-digit',month:'short'}) : t('No date')}</b></footer>{onEdit && <button className="roadmap-edit" onClick={(event) => { event.stopPropagation(); onEdit(solution); }} aria-label={`${t('Edit solution')} ${solution.name}`}><Pencil size={13}/></button>}</article>)}</div></article>; })}</section></>;
+function ErpRoadmap({ roadmap, onEdit }) {
+  const { t } = useLang();
+  const completed = roadmap.reduce((sum, phase) => sum + phase.steps.filter((step) => step.status === 'Completed').length, 0);
+  const total = roadmap.reduce((sum, phase) => sum + phase.steps.length, 0);
+  return <>
+    <section className="registry-intro erp-roadmap-intro"><div><p className="eyebrow">{t('ERP implementation')}</p><h1>{t('ERP delivery roadmap')}</h1><p>{t('Seven editable phases derived from the approved architecture documents.')}</p></div><div className="roadmap-progress"><strong>{completed} / {total}</strong><span>{t('steps completed')}</span></div></section>
+    <section className="erp-roadmap">{roadmap.map((phase) => <article className="erp-phase" key={phase.id}>
+      <header className="erp-phase-head"><div><span>{t('Phase')} {phase.number}</span><h2>{phase.title}</h2><p>{phase.goal}</p></div>{onEdit && <button className="roadmap-edit" onClick={() => onEdit({ kind: 'phase', phaseId: phase.id, title: phase.title, goal: phase.goal, exitCriteria: phase.exitCriteria })} aria-label={t('Edit phase')}><Pencil size={14}/></button>}</header>
+      <div className="erp-steps">{phase.steps.map((step, index) => <button className="erp-step" key={step.id} onClick={() => onEdit?.({ kind: 'step', phaseId: phase.id, stepId: step.id, text: step.text, status: step.status, notes: step.notes || '' })}><span className={`erp-step-status status-${step.status.toLowerCase().replace(' ', '-')}`}>{t(step.status)}</span><b>{String(index + 1).padStart(2, '0')}</b><strong>{step.text}</strong>{step.notes && <small>{step.notes}</small>}{onEdit && <Pencil size={13}/>}</button>)}</div>
+      {onEdit && <button className="erp-add-step" onClick={() => onEdit({ kind: 'step', phaseId: phase.id, stepId: '', text: '', status: 'Planned', notes: '' })}><Plus size={14}/>{t('Add step')}</button>}
+      <footer className="erp-exit"><span>{t('Exit criteria')}</span><p>{phase.exitCriteria}</p></footer>
+    </article>)}</section>
+  </>;
+}
+
+function RoadmapEditor({ item, onClose, onSave, onDelete }) {
+  const { t } = useLang();
+  const [draft, setDraft] = useState(item);
+  const update = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
+  const submit = (event) => { event.preventDefault(); if ((draft.kind === 'phase' ? draft.title : draft.text).trim()) onSave(draft); };
+  return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="roadmap-editor-title"><div className="editor-heading"><div><p className="eyebrow">{t('Editable roadmap')}</p><h2 id="roadmap-editor-title">{t(draft.kind === 'phase' ? 'Edit phase' : draft.stepId ? 'Edit step' : 'Add step')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close editor')}><X size={18}/></button></div><form onSubmit={submit}>
+    {draft.kind === 'phase' ? <><label>{t('Phase name')}<input autoFocus value={draft.title} onChange={update('title')} required/></label><label>{t('Goal')}<textarea value={draft.goal} onChange={update('goal')} rows="3" required/></label><label>{t('Exit criteria')}<textarea value={draft.exitCriteria} onChange={update('exitCriteria')} rows="4" required/></label></> : <><label>{t('Step')}<textarea autoFocus value={draft.text} onChange={update('text')} rows="4" required/></label><label>{t('Status')}<select value={draft.status} onChange={update('status')}><option value="Planned">{t('Planned')}</option><option value="In progress">{t('In progress')}</option><option value="Completed">{t('Completed')}</option></select></label><label>{t('Notes')}<textarea value={draft.notes} onChange={update('notes')} rows="3" placeholder={t('Add implementation notes, owner, or dependencies.')}/></label></>}
+    <div className="editor-actions">{draft.kind === 'step' && draft.stepId && <button type="button" className="danger-button" onClick={() => onDelete(draft.phaseId, draft.stepId)}><Trash2 size={16}/>{t('Delete step')}</button>}<button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save')}</button></div>
+  </form></section></div>;
 }
 
 function SolutionDetail({ solution, onBack, onEdit }) {

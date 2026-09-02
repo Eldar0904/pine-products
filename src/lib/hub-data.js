@@ -66,3 +66,21 @@ export async function deleteRemoteSolution(id) {
   const { error } = await supabase.from('solutions').delete().eq('id', id);
   if (error) throw error;
 }
+
+export async function loadRemoteRoadmap() {
+  const { data, error } = await supabase
+    .from('roadmap_documents')
+    .select('payload')
+    .eq('id', 'erp-implementation')
+    .maybeSingle();
+  if (error) throw error;
+  return Array.isArray(data?.payload) ? data.payload : null;
+}
+
+export async function saveRemoteRoadmap(payload) {
+  const { error } = await supabase.from('roadmap_documents').upsert({
+    id: 'erp-implementation',
+    payload,
+  });
+  if (error) throw error;
+}

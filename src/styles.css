@@ -61,3 +61,33 @@ main, .page-content, .table-panel, .solution-table { min-width:0; }
 .output-count { color:#173f39; white-space:nowrap; }
 .output-month { display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e9ede8; margin-top:14px; padding-top:12px; color:#75837b; font-size:10px; }
 .output-month strong { color:#173f39; font-size:17px; }
+
+/* Architecture implementation roadmap */
+.erp-roadmap-intro { align-items:center; }
+.roadmap-progress { flex:none; min-width:130px; padding:14px 17px; border:1px solid #dce3dc; border-radius:12px; background:#fff; }
+.roadmap-progress strong,.roadmap-progress span { display:block; }
+.roadmap-progress strong { color:#173f39; font-size:21px; letter-spacing:-.04em; }
+.roadmap-progress span { color:#7a8981; font-size:9px; margin-top:3px; }
+.erp-roadmap { display:grid; gap:15px; }
+.erp-phase { border:1px solid #dce3dc; border-radius:14px; background:#fff; overflow:hidden; }
+.erp-phase-head { position:relative; display:grid; grid-template-columns:1fr auto; gap:20px; padding:21px 22px 18px; background:#f0f3ee; border-bottom:1px solid #dce3dc; }
+.erp-phase-head span { color:#3d7968; font:600 9px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; }
+.erp-phase-head h2 { color:#173f39; margin:7px 35px 0 0; font-size:20px; letter-spacing:-.04em; }
+.erp-phase-head p { color:#687a71; max-width:800px; margin:7px 35px 0 0; font-size:11px; line-height:1.55; }
+.erp-phase-head .roadmap-edit { top:17px; right:17px; }
+.erp-steps { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; background:#e9ede8; }
+.erp-step { position:relative; display:grid; grid-template-columns:28px 1fr auto; align-items:start; gap:10px; min-height:92px; padding:17px 18px; border:0; background:#fff; color:#29463d; text-align:left; }
+.erp-step:hover { background:#f8faf7; }
+.erp-step>b { color:#94a199; font:500 9px 'DM Mono',monospace; padding-top:3px; }
+.erp-step>strong { font-size:11px; line-height:1.55; font-weight:650; padding-right:8px; }
+.erp-step>small { grid-column:2 / -1; color:#7a8981; font-size:9px; line-height:1.45; }
+.erp-step>svg { color:#6c857b; margin-top:2px; }
+.erp-step-status { grid-column:1 / -1; justify-self:start; border-radius:20px; padding:4px 7px; font-size:8px; font-weight:700; }
+.status-planned { background:#edf0ed; color:#718178; }
+.status-in-progress { background:#fff1dc; color:#a36523; }
+.status-completed { background:#e5f3e8; color:#2d7b55; }
+.erp-add-step { display:flex; align-items:center; gap:6px; margin:14px 20px; padding:7px 0; border:0; background:transparent; color:#286255; font-size:10px; font-weight:700; }
+.erp-exit { display:grid; grid-template-columns:110px 1fr; gap:16px; align-items:start; padding:15px 21px; border-top:1px solid #e9ede8; background:#fafbf9; }
+.erp-exit span { color:#7d9189; font:500 9px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.08em; }
+.erp-exit p { color:#52665d; font-size:10px; line-height:1.55; margin:0; }
+@media (max-width:700px) { .erp-roadmap-intro { align-items:flex-start; }.roadmap-progress { width:100%; }.erp-steps { grid-template-columns:1fr; }.erp-exit { grid-template-columns:1fr; gap:6px; } }

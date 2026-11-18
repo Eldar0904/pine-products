@@ -1,24 +1,5 @@
 # PINE Product Hub
 
-The home page is a Kazakh solution directory and private employee feedback form.
-The ERP workspace remains available at `/?workspace=1`.
-
-## Landing page setup
-
-Set `VITE_GOSZAKUP_URL`, `VITE_OFFERS_URL`, `VITE_AGREEMENTS_URL`, and
-`VITE_EDUMAX_URL` to the real HTTPS solution URLs, then redeploy. Until supplied,
-cards show “Сілтеме қосылады” without a fake link. Card previews illustrate
-the task, not screenshots of deployed instruments.
-
-To enable private feedback, select the Product Hub Supabase project, run
-`supabase/setup/employee_feedback.sql`, and configure `SUPABASE_URL` (or
-`VITE_SUPABASE_URL`) plus the existing server-only
-`PINE_USAGE_SUPABASE_SERVICE_ROLE_KEY`. Review submissions in Supabase Table Editor.
-There is no public feedback listing. Existing Vercel deployment protection should
-remain enabled for this internal portal. The form never reports success without
-a database write, and offers explicitly local draft saving when collection is
-unavailable. Local drafts may contain employee feedback on shared browsers.
-
 Internal portfolio and operating hub for PINE’s automation products.
 
 ## Local development

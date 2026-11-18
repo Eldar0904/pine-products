@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import pineLogo from './assets/pine-logo.png';
 import './styles.css';
-import Landing from './Landing';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { deleteRemoteSolution, loadRemoteRoadmap, loadSolutions, saveRemoteRoadmap, saveRemoteSolution } from './lib/hub-data';
 import {
@@ -443,4 +442,4 @@ function SolutionEditor({ solution, onClose, onSave, onDelete }) {
   </section></div>;
 }
 
-createRoot(document.getElementById('root')).render(new URLSearchParams(window.location.search).get('workspace') === '1' ? <App /> : <Landing />);
+createRoot(document.getElementById('root')).render(<App />);

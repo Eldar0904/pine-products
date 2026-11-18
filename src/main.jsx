@@ -19,7 +19,7 @@ import {
   useLang,
 } from './lib/i18n';
 import { applyRemoteUsage, formatOutputs, getOutputMetrics, loadRemoteUsage, totalOutputs } from './lib/usage';
-import { designPrinciples, ERP_ROADMAP_STORAGE_KEY, getPhaseSchedule, loadErpRoadmap, productConcept, russifyRoadmap } from './lib/erp-roadmap';
+import { designPrinciples, ERP_ROADMAP_STORAGE_KEY, loadErpRoadmap, productConcept, russifyRoadmap } from './lib/erp-roadmap';
 
 const seedSolutions = [
   { id: 'offer-generator', name: 'Commercial Offer Generator', department: 'Procurement', stage: 'Live', health: 'Healthy', value: '28 hrs', detail: '86 completed offers this month', accent: 'teal', owner: 'Eldar Pine', purpose: 'Generate consistent commercial offers from approved procurement data.', businessCase: 'Reduce repeated formatting work and improve offer turnaround time.', nextStep: 'Validate the monthly time-saving baseline with Procurement.', roadmapStage: 'Measuring outcome', targetDate: '2026-08-09', blocker: '', aiOpportunity: 'Draft offer summary from structured data after human review.' },
@@ -117,7 +117,7 @@ function App() {
   const isAdmin = auth.role === 'admin';
   const nav = [
     { id: 'Concept', label: 'Главная' },
-    ...roadmap.map((phase) => ({ id: phase.id, label: `Этап ${phase.number}`, schedule: getPhaseSchedule(phase.number, now) })),
+    ...roadmap.map((phase) => ({ id: phase.id, label: `Этап ${phase.number}` })),
     { id: 'Subscriptions', label: 'Подписки' },
   ];
 
@@ -244,7 +244,7 @@ function App() {
         <nav>
           <p className="nav-label">АРХИТЕКТУРА ERP</p>
           {nav.map(item => <button key={item.id} onClick={() => { setSelectedSolution(null); setSection(item.id); setMobileOpen(false); }} className={section === item.id ? 'nav-item active' : 'nav-item'}>
-            {item.id === 'Concept' ? <LayoutDashboard size={18}/> : item.id === 'Subscriptions' ? <Server size={18}/> : <Sparkles size={18}/>}<span className="nav-item-copy">{item.label}{item.schedule && <small>{item.schedule.statusLabel}</small>}</span>
+            {item.id === 'Concept' ? <LayoutDashboard size={18}/> : item.id === 'Subscriptions' ? <Server size={18}/> : <Sparkles size={18}/>}<span className="nav-item-copy">{item.label}</span>
           </button>)}
         </nav>
         <button className="sidebar-settings" type="button"><Settings size={18}/><span>Настройки</span></button>
@@ -280,7 +280,7 @@ function App() {
 
           {saveError && <div className="error-banner"><CircleAlert size={16}/>{saveError}</div>}
           {section === 'Concept' ? <ArchitectureConcept/> : section.startsWith('phase-')
-            ? <ErpPhasePage phase={roadmap.find((item) => item.id === section)} roadmap={roadmap} now={now} onNavigate={setSection} onEdit={isAdmin ? setRoadmapEditor : undefined}/>
+            ? <ErpPhasePage phase={roadmap.find((item) => item.id === section)} roadmap={roadmap} onNavigate={setSection} onEdit={isAdmin ? setRoadmapEditor : undefined}/>
             : <AdminContent section={section} solutions={solutions} subscriptions={subscriptions} technicalProfiles={technicalProfiles} onEdit={isAdmin ? setEditingSolution : undefined} onCreate={isAdmin ? createSolution : undefined} onOpen={setSelectedSolution} onEditSubscription={isAdmin ? setEditingSubscription : undefined} onCreateSubscription={isAdmin ? createSubscription : undefined} onEditProfile={isAdmin ? setEditingProfile : undefined}/>}
           </>}
         </div>
@@ -364,14 +364,11 @@ function ArchitectureConcept() {
     <section className="principles-section"><div className="section-title"><p className="eyebrow">ОСНОВА ПРОДУКТА</p><h2>Принципы проекта</h2></div><div className="principles-grid">{designPrinciples.map(([title, description], index) => <article key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{description}</p></article>)}</div></section></>;
 }
 
-function ErpPhasePage({ phase, roadmap, now, onNavigate, onEdit }) {
-  const { t } = useLang();
+function ErpPhasePage({ phase, roadmap, onNavigate, onEdit }) {
   if (!phase) return null;
   const index = roadmap.findIndex((item) => item.id === phase.id);
-  const completed = phase.steps.filter((step) => step.status === 'Completed').length;
-  const schedule = getPhaseSchedule(phase.number, now);
-  return <><section className="phase-page-head"><div><p className="eyebrow">ЭТАП {phase.number} ИЗ {roadmap.length - 1}</p><h1>{phase.title}</h1><p>{phase.goal}</p></div><div className="phase-progress"><span className={`phase-live-status phase-live-status--${schedule.status}`}>{schedule.statusLabel}</span><strong>{schedule.range}</strong><span>{schedule.progress}% недели · {completed} / {phase.steps.length} шагов завершено</span><i><b style={{ width: `${schedule.progress}%` }}/></i></div>{onEdit && <button className="phase-edit-button" onClick={() => onEdit({ kind: 'phase', phaseId: phase.id, title: phase.title, goal: phase.goal, exitCriteria: phase.exitCriteria })}><Pencil size={15}/>Редактировать этап</button>}</section>
-    <section className="phase-steps-panel"><div className="section-title"><p className="eyebrow">ПЛАН РЕАЛИЗАЦИИ</p><h2>Шаги этапа</h2></div><div className="phase-step-list">{phase.steps.map((step, stepIndex) => <button key={step.id} className="phase-step-row" onClick={() => onEdit?.({ kind: 'step', phaseId: phase.id, stepId: step.id, text: step.text, status: step.status, notes: step.notes || '' })}><b>{String(stepIndex + 1).padStart(2, '0')}</b><div><strong>{step.text}</strong>{step.notes && <small>{step.notes}</small>}</div><span className={`erp-step-status status-${step.status.toLowerCase().replace(' ', '-')}`}>{t(step.status)}</span>{onEdit && <Pencil size={14}/>}</button>)}</div>{onEdit && <button className="erp-add-step" onClick={() => onEdit({ kind: 'step', phaseId: phase.id, stepId: '', text: '', status: 'Planned', notes: '' })}><Plus size={14}/>Добавить шаг</button>}</section>
+  return <><section className="phase-page-head"><div><p className="eyebrow">ЭТАП {phase.number} ИЗ {roadmap.length - 1}</p><h1>{phase.title}</h1><p>{phase.goal}</p></div>{onEdit && <button className="phase-edit-button" onClick={() => onEdit({ kind: 'phase', phaseId: phase.id, title: phase.title, goal: phase.goal, exitCriteria: phase.exitCriteria })}><Pencil size={15}/>Редактировать этап</button>}</section>
+    <section className="phase-steps-panel"><div className="section-title"><p className="eyebrow">ПЛАН РЕАЛИЗАЦИИ</p><h2>Шаги этапа</h2></div><div className="phase-step-list">{phase.steps.map((step, stepIndex) => <button key={step.id} className="phase-step-row" onClick={() => onEdit?.({ kind: 'step', phaseId: phase.id, stepId: step.id, text: step.text, status: step.status, notes: step.notes || '' })}><b>{String(stepIndex + 1).padStart(2, '0')}</b><div><strong>{step.text}</strong>{step.notes && <small>{step.notes}</small>}</div>{onEdit && <Pencil size={14}/>}</button>)}</div>{onEdit && <button className="erp-add-step" onClick={() => onEdit({ kind: 'step', phaseId: phase.id, stepId: '', text: '', status: 'Planned', notes: '' })}><Plus size={14}/>Добавить шаг</button>}</section>
     <section className="phase-exit"><p className="eyebrow">КРИТЕРИЙ ВЫХОДА</p><p>{phase.exitCriteria}</p></section>
     <nav className="phase-pagination">{index > 0 ? <button onClick={() => onNavigate(roadmap[index - 1].id)}>← Этап {roadmap[index - 1].number}</button> : <button onClick={() => onNavigate('Concept')}>← Главная</button>} {index < roadmap.length - 1 && <button onClick={() => onNavigate(roadmap[index + 1].id)}>Этап {roadmap[index + 1].number} →</button>}</nav></>;
 }
@@ -382,7 +379,7 @@ function RoadmapEditor({ item, onClose, onSave, onDelete }) {
   const update = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
   const submit = (event) => { event.preventDefault(); if ((draft.kind === 'phase' ? draft.title : draft.text).trim()) onSave(draft); };
   return <div className="modal-backdrop" role="presentation"><section className="solution-editor" role="dialog" aria-modal="true" aria-labelledby="roadmap-editor-title"><div className="editor-heading"><div><p className="eyebrow">{t('Editable roadmap')}</p><h2 id="roadmap-editor-title">{t(draft.kind === 'phase' ? 'Edit phase' : draft.stepId ? 'Edit step' : 'Add step')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('Close editor')}><X size={18}/></button></div><form onSubmit={submit}>
-    {draft.kind === 'phase' ? <><label>{t('Phase name')}<input autoFocus value={draft.title} onChange={update('title')} required/></label><label>{t('Goal')}<textarea value={draft.goal} onChange={update('goal')} rows="3" required/></label><label>{t('Exit criteria')}<textarea value={draft.exitCriteria} onChange={update('exitCriteria')} rows="4" required/></label></> : <><label>{t('Step')}<textarea autoFocus value={draft.text} onChange={update('text')} rows="4" required/></label><label>{t('Status')}<select value={draft.status} onChange={update('status')}><option value="Planned">{t('Planned')}</option><option value="In progress">{t('In progress')}</option><option value="Completed">{t('Completed')}</option></select></label><label>{t('Notes')}<textarea value={draft.notes} onChange={update('notes')} rows="3" placeholder={t('Add implementation notes, owner, or dependencies.')}/></label></>}
+    {draft.kind === 'phase' ? <><label>{t('Phase name')}<input autoFocus value={draft.title} onChange={update('title')} required/></label><label>{t('Goal')}<textarea value={draft.goal} onChange={update('goal')} rows="3" required/></label><label>{t('Exit criteria')}<textarea value={draft.exitCriteria} onChange={update('exitCriteria')} rows="4" required/></label></> : <><label>{t('Step')}<textarea autoFocus value={draft.text} onChange={update('text')} rows="4" required/></label><label>{t('Notes')}<textarea value={draft.notes} onChange={update('notes')} rows="3" placeholder={t('Add implementation notes, owner, or dependencies.')}/></label></>}
     <div className="editor-actions">{draft.kind === 'step' && draft.stepId && <button type="button" className="danger-button" onClick={() => onDelete(draft.phaseId, draft.stepId)}><Trash2 size={16}/>{t('Delete step')}</button>}<button type="button" className="secondary-button" onClick={onClose}>{t('Cancel')}</button><button type="submit" className="primary-button"><FileText size={16}/>{t('Save')}</button></div>
   </form></section></div>;
 }

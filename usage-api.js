@@ -72,8 +72,15 @@ export function createUsageApiMiddleware(env = process.env) {
         const expected = String(env.PRODUCT_HUB_USAGE_TOKEN || '').trim()
         const provided = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()
         if (!expected || provided !== expected) { res.statusCode = 401; res.setHeader('Content-Type', jsonHeaders['Content-Type']); res.end(JSON.stringify({ error: 'Unauthorized' })); return }
-        let raw = ''; for await (const chunk of req) raw += chunk
-        const result = await recordUsageEvent(env, validateEvent(JSON.parse(raw)))
+        // Vercel parses JSON bodies; Vite supplies a raw Node request stream.
+        let body = req.body
+        if (body === undefined) {
+          let raw = ''; for await (const chunk of req) raw += chunk
+          body = JSON.parse(raw)
+        } else if (typeof body === 'string' || Buffer.isBuffer(body)) {
+          body = JSON.parse(body.toString())
+        }
+        const result = await recordUsageEvent(env, validateEvent(body))
         res.statusCode = result.duplicate ? 200 : 201; Object.entries(jsonHeaders).forEach(([k, v]) => res.setHeader(k, v)); res.end(JSON.stringify({ ok: true, ...result })); return
       } catch (error) { res.statusCode = 400; Object.entries(jsonHeaders).forEach(([k, v]) => res.setHeader(k, v)); res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Usage event failed' })); return }
     }

@@ -52,3 +52,21 @@ Send `Authorization: Bearer $PRODUCT_HUB_USAGE_TOKEN`. Events are stored in
 Supabase using `PINE_USAGE_SUPABASE_SERVICE_ROLE_KEY`; the browser only reads
 aggregated lifetime and current-month totals from `GET /api/usage`. Run
 `supabase/migrations/20260827_usage_events.sql` before enabling persistence.
+
+## Deploy to Vercel
+
+Import `Eldar0904/pine-products` into Vercel, choose the `main` branch and
+repository root. The checked-in `vercel.json` selects Vite, `npm run build`,
+and the `dist` output folder. API files deploy as Node functions.
+
+Configure these environment variables in Vercel before deploying:
+
+- `VITE_APP_MODE=production` to enable the existing sign-in requirement.
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
+- `PINE_USAGE_SUPABASE_SERVICE_ROLE_KEY` and `PRODUCT_HUB_USAGE_TOKEN` for usage events (server only).
+- Optional: `PINEGROUP_GZ_API_URL` for the legacy external usage feed when the usage database is not configured.
+
+Apply the Supabase migrations and assign an admin user before enabling production
+sign-in. Never put server secrets in variables prefixed with `VITE_`.
+After deployment, verify `/api/usage` returns JSON and unauthenticated POSTs to
+`/api/usage/events` return 401. Pushes to the linked branch will deploy automatically.
